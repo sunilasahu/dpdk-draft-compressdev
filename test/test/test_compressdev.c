@@ -25,7 +25,7 @@
 #define COMPRESS_BUF_SIZE_RATIO 1.3
 #define NUM_MBUFS 16
 #define NUM_OPS 16
-#define NUM_SESSIONS 1
+#define NUM_MAX_SESSIONS 16
 #define NUM_MAX_INFLIGHT_OPS 128
 #define CACHE_SIZE 0
 
@@ -53,8 +53,8 @@ struct comp_testsuite_params {
 	struct rte_mempool *mbuf_pool;
 	struct rte_mempool *sess_pool;
 	struct rte_mempool *op_pool;
-	struct rte_comp_xform def_comp_xform;
-	struct rte_comp_xform def_decomp_xform;
+	struct rte_comp_xform *def_comp_xform;
+	struct rte_comp_xform *def_decomp_xform;
 };
 
 static struct comp_testsuite_params testsuite_params = { 0 };
@@ -67,6 +67,8 @@ testsuite_teardown(void)
 	rte_mempool_free(ts_params->mbuf_pool);
 	rte_mempool_free(ts_params->sess_pool);
 	rte_mempool_free(ts_params->op_pool);
+	rte_free(ts_params->def_comp_xform);
+	rte_free(ts_params->def_decomp_xform);
 }
 
 static int
@@ -109,7 +111,7 @@ testsuite_setup(void)
 	 */
 	uint32_t session_size = rte_compressdev_get_private_session_size(0);
 	ts_params->sess_pool = rte_mempool_create("session_pool",
-						NUM_SESSIONS * 2,
+						NUM_MAX_SESSIONS * 2,
 						session_size,
 						0, 0, NULL, NULL, NULL,
 						NULL, rte_socket_id(), 0);
@@ -125,20 +127,25 @@ testsuite_setup(void)
 		goto exit;
 	}
 
-	/* Initializes default values for compress/decompress xforms */
-	ts_params->def_comp_xform.next = NULL;
-	ts_params->def_comp_xform.type = RTE_COMP_COMPRESS;
-	ts_params->def_comp_xform.compress.algo = RTE_COMP_DEFLATE,
-	ts_params->def_comp_xform.compress.deflate.huffman = RTE_COMP_DEFAULT;
-	ts_params->def_comp_xform.compress.level = RTE_COMP_LEVEL_PMD_DEFAULT;
-	ts_params->def_comp_xform.compress.chksum = RTE_COMP_NONE;
-	ts_params->def_comp_xform.compress.window_size = DEFAULT_WINDOW_SIZE;
+	ts_params->def_comp_xform =
+			rte_malloc(NULL, sizeof(struct rte_comp_xform), 0);
+	ts_params->def_decomp_xform =
+			rte_malloc(NULL, sizeof(struct rte_comp_xform), 0);
 
-	ts_params->def_decomp_xform.next = NULL;
-	ts_params->def_decomp_xform.type = RTE_COMP_DECOMPRESS;
-	ts_params->def_decomp_xform.decompress.algo = RTE_COMP_DEFLATE,
-	ts_params->def_decomp_xform.decompress.chksum = RTE_COMP_NONE;
-	ts_params->def_decomp_xform.decompress.window_size = DEFAULT_WINDOW_SIZE;
+	/* Initializes default values for compress/decompress xforms */
+	ts_params->def_comp_xform->next = NULL;
+	ts_params->def_comp_xform->type = RTE_COMP_COMPRESS;
+	ts_params->def_comp_xform->compress.algo = RTE_COMP_DEFLATE,
+	ts_params->def_comp_xform->compress.deflate.huffman = RTE_COMP_DEFAULT;
+	ts_params->def_comp_xform->compress.level = RTE_COMP_LEVEL_PMD_DEFAULT;
+	ts_params->def_comp_xform->compress.chksum = RTE_COMP_NONE;
+	ts_params->def_comp_xform->compress.window_size = DEFAULT_WINDOW_SIZE;
+
+	ts_params->def_decomp_xform->next = NULL;
+	ts_params->def_decomp_xform->type = RTE_COMP_DECOMPRESS;
+	ts_params->def_decomp_xform->decompress.algo = RTE_COMP_DEFLATE,
+	ts_params->def_decomp_xform->decompress.chksum = RTE_COMP_NONE;
+	ts_params->def_decomp_xform->decompress.window_size = DEFAULT_WINDOW_SIZE;
 
 	return TEST_SUCCESS;
 
@@ -359,8 +366,9 @@ static int
 test_deflate_comp_decomp(const char * const test_bufs[],
 		unsigned int num_bufs,
 		uint16_t buf_idx[],
-		const struct rte_comp_xform *compress_xform,
-		const struct rte_comp_xform *decompress_xform,
+		struct rte_comp_xform *compress_xforms[],
+		struct rte_comp_xform *decompress_xforms[],
+		unsigned int num_xforms,
 		enum rte_comp_op_type state,
 		enum zlib_direction zlib_dir)
 {
@@ -370,7 +378,7 @@ test_deflate_comp_decomp(const char * const test_bufs[],
 	struct rte_mbuf *comp_bufs[num_bufs];
 	struct rte_comp_op *ops[num_bufs];
 	struct rte_comp_op *ops_processed[num_bufs];
-	struct rte_comp_session *sess = NULL;
+	struct rte_comp_session *sess[num_xforms];
 	uint16_t num_enqd, num_deqd;
 	struct priv_op_data *priv_data;
 	char *data_ptr;
@@ -381,6 +389,7 @@ test_deflate_comp_decomp(const char * const test_bufs[],
 	memset(comp_bufs, 0, sizeof(struct rte_mbuf *) * num_bufs);
 	memset(ops, 0, sizeof(struct rte_comp_op *) * num_bufs);
 	memset(ops_processed, 0, sizeof(struct rte_comp_op *) * num_bufs);
+	memset(sess, 0, sizeof(struct rte_comp_session *) * num_xforms);
 
 	/* Prepare the source mbufs with the data */
 	ret = rte_pktmbuf_alloc_bulk(ts_params->mbuf_pool, uncomp_bufs, num_bufs);
@@ -447,8 +456,9 @@ test_deflate_comp_decomp(const char * const test_bufs[],
 	/* Compress data (either with Zlib API or compressdev API */
 	if (zlib_dir == ZLIB_COMPRESS || zlib_dir == ZLIB_ALL) {
 		for (i = 0; i < num_bufs; i++) {
-			ret = compress_zlib(ops[i],
-					&compress_xform->compress,
+			const struct rte_comp_compress_xform *compress_xform =
+				&compress_xforms[i % num_xforms]->compress;
+			ret = compress_zlib(ops[i], compress_xform,
 					DEFAULT_MEM_LEVEL);
 			if (ret < 0)
 				goto err;
@@ -457,19 +467,21 @@ test_deflate_comp_decomp(const char * const test_bufs[],
 		}
 	} else {
 		num_deqd = 0;
-		/* Create compress session */
-		sess = rte_compressdev_session_create(ts_params->sess_pool);
-		ret = rte_compressdev_session_init(0, sess, compress_xform,
-			ts_params->sess_pool);
-		if (ret < 0) {
-			RTE_LOG(ERR, USER1,
-				"Compression session could not be created\n");
-			goto err;
+		/* Create compress sessions */
+		for (i = 0; i < num_xforms; i++) {
+			sess[i] = rte_compressdev_session_create(ts_params->sess_pool);
+			ret = rte_compressdev_session_init(0, sess[i], compress_xforms[i],
+				ts_params->sess_pool);
+			if (ret < 0) {
+				RTE_LOG(ERR, USER1,
+					"Compression session could not be created\n");
+				goto err;
+			}
 		}
 
 		/* Attach session to operation */
 		for (i = 0; i < num_bufs; i++)
-			ops[i]->session = sess;
+			ops[i]->session = sess[i % num_xforms];
 
 		/* Enqueue and dequeue all operations */
 		num_enqd = rte_compressdev_enqueue_burst(0, 0, ops, num_bufs);
@@ -485,20 +497,25 @@ test_deflate_comp_decomp(const char * const test_bufs[],
 		} while (num_deqd < num_enqd);
 
 		/* Free compress session */
-		rte_compressdev_session_clear(0, sess);
-		rte_compressdev_session_terminate(sess);
-		sess = NULL;
+		for (i = 0; i < num_xforms; i++) {
+			rte_compressdev_session_clear(0, sess[i]);
+			rte_compressdev_session_terminate(sess[i]);
+			sess[i] = NULL;
+		}
 	}
 
-	enum rte_comp_huffman huffman_type =
-		compress_xform->compress.deflate.huffman;
 	for (i = 0; i < num_bufs; i++) {
 		priv_data = (struct priv_op_data *) (ops_processed[i] + 1);
+		uint16_t xform_idx = priv_data->orig_idx % num_xforms;
+		const struct rte_comp_compress_xform *compress_xform =
+				&compress_xforms[xform_idx]->compress;
+		enum rte_comp_huffman huffman_type =
+			compress_xform->deflate.huffman;
 		RTE_LOG(DEBUG, USER1, "Buffer %u compressed from %u to %u bytes "
-			"(level = %u, huffman = %s)\n",
+			"(level = %d, huffman = %s)\n",
 			buf_idx[priv_data->orig_idx],
 			ops_processed[i]->consumed, ops_processed[i]->produced,
-			compress_xform->compress.level,
+			compress_xform->level,
 			huffman_type_strings[huffman_type]);
 	}
 
@@ -581,8 +598,12 @@ test_deflate_comp_decomp(const char * const test_bufs[],
 	/* Decompress data (either with Zlib API or compressdev API */
 	if (zlib_dir == ZLIB_DECOMPRESS || zlib_dir == ZLIB_ALL) {
 		for (i = 0; i < num_bufs; i++) {
-			ret = decompress_zlib(ops[i],
-					&decompress_xform->decompress);
+			priv_data = (struct priv_op_data *) (ops[i] + 1);
+			uint16_t xform_idx = priv_data->orig_idx % num_xforms;
+			const struct rte_comp_decompress_xform *decompress_xform =
+				&decompress_xforms[xform_idx]->decompress;
+
+			ret = decompress_zlib(ops[i], decompress_xform);
 			if (ret < 0)
 				goto err;
 
@@ -590,19 +611,24 @@ test_deflate_comp_decomp(const char * const test_bufs[],
 		}
 	} else {
 		num_deqd = 0;
-		/* Create compress session */
-		sess = rte_compressdev_session_create(ts_params->sess_pool);
-		ret = rte_compressdev_session_init(0, sess, decompress_xform,
-			ts_params->sess_pool);
-		if (ret < 0) {
-			RTE_LOG(ERR, USER1,
-				"Decompression session could not be created\n");
-			goto err;
+		/* Create decompress session */
+		for (i = 0; i < num_xforms; i++) {
+			sess[i] = rte_compressdev_session_create(ts_params->sess_pool);
+			ret = rte_compressdev_session_init(0, sess[i],
+				decompress_xforms[i], ts_params->sess_pool);
+			if (ret < 0) {
+				RTE_LOG(ERR, USER1,
+					"Decompression session could not be created\n");
+				goto err;
+			}
 		}
 
 		/* Attach session to operation */
-		for (i = 0; i < num_bufs; i++)
-			ops[i]->session = sess;
+		for (i = 0; i < num_bufs; i++) {
+			priv_data = (struct priv_op_data *) (ops[i] + 1);
+			uint16_t sess_idx = priv_data->orig_idx % num_xforms;
+			ops[i]->session = sess[sess_idx];
+		}
 
 		/* Enqueue and dequeue all operations */
 		num_enqd = rte_compressdev_enqueue_burst(0, 0, ops, num_bufs);
@@ -618,9 +644,11 @@ test_deflate_comp_decomp(const char * const test_bufs[],
 		} while (num_deqd < num_enqd);
 
 		/* Free compress session */
-		rte_compressdev_session_clear(0, sess);
-		rte_compressdev_session_terminate(sess);
-		sess = NULL;
+		for (i = 0; i < num_xforms; i++) {
+			rte_compressdev_session_clear(0, sess[i]);
+			rte_compressdev_session_terminate(sess[i]);
+			sess[i] = NULL;
+		}
 	}
 
 	for (i = 0; i < num_bufs; i++) {
@@ -679,8 +707,10 @@ err:
 		rte_comp_op_free(ops[i]);
 		rte_comp_op_free(ops_processed[i]);
 	}
-	rte_compressdev_session_clear(0, sess);
-	rte_compressdev_session_terminate(sess);
+	for (i = 0; i < num_xforms; i++) {
+		rte_compressdev_session_clear(0, sess[i]);
+		rte_compressdev_session_terminate(sess[i]);
+	}
 
 	return -1;
 }
@@ -691,11 +721,13 @@ test_compressdev_deflate_stateless_fixed(void)
 	struct comp_testsuite_params *ts_params = &testsuite_params;
 	const char *test_buffer;
 	uint16_t i;
-	struct rte_comp_xform compress_xform;
+	int ret;
+	struct rte_comp_xform *compress_xform =
+			rte_malloc(NULL, sizeof(struct rte_comp_xform), 0);
 
-	memcpy(&compress_xform, &ts_params->def_comp_xform,
+	memcpy(compress_xform, ts_params->def_comp_xform,
 			sizeof(struct rte_comp_xform));
-	compress_xform.compress.deflate.huffman = RTE_COMP_FIXED;
+	compress_xform->compress.deflate.huffman = RTE_COMP_FIXED;
 
 	for (i = 0; i < RTE_DIM(compress_test_bufs); i++) {
 		test_buffer = compress_test_bufs[i];
@@ -705,21 +737,31 @@ test_compressdev_deflate_stateless_fixed(void)
 				&i,
 				&compress_xform,
 				&ts_params->def_decomp_xform,
+				1,
 				RTE_COMP_OP_STATELESS,
-				ZLIB_DECOMPRESS) < 0)
-			return TEST_FAILED;
+				ZLIB_DECOMPRESS) < 0) {
+			ret = TEST_FAILED;
+			goto exit;
+		}
 
 		/* Compress with Zlib, decompress with compressdev */
 		if (test_deflate_comp_decomp(&test_buffer, 1,
 				&i,
 				&compress_xform,
 				&ts_params->def_decomp_xform,
+				1,
 				RTE_COMP_OP_STATELESS,
-				ZLIB_COMPRESS) < 0)
-			return TEST_FAILED;
+				ZLIB_COMPRESS) < 0) {
+			ret = TEST_FAILED;
+			goto exit;
+		}
 	}
 
-	return TEST_SUCCESS;
+	ret = TEST_SUCCESS;
+
+exit:
+	rte_free(compress_xform);
+	return ret;
 }
 
 static int
@@ -728,11 +770,13 @@ test_compressdev_deflate_stateless_dynamic(void)
 	struct comp_testsuite_params *ts_params = &testsuite_params;
 	const char *test_buffer;
 	uint16_t i;
-	struct rte_comp_xform compress_xform;
+	int ret;
+	struct rte_comp_xform *compress_xform =
+			rte_malloc(NULL, sizeof(struct rte_comp_xform), 0);
 
-	memcpy(&compress_xform, &ts_params->def_comp_xform,
+	memcpy(compress_xform, ts_params->def_comp_xform,
 			sizeof(struct rte_comp_xform));
-	compress_xform.compress.deflate.huffman = RTE_COMP_DYNAMIC;
+	compress_xform->compress.deflate.huffman = RTE_COMP_DYNAMIC;
 
 	for (i = 0; i < RTE_DIM(compress_test_bufs); i++) {
 		test_buffer = compress_test_bufs[i];
@@ -742,21 +786,31 @@ test_compressdev_deflate_stateless_dynamic(void)
 				&i,
 				&compress_xform,
 				&ts_params->def_decomp_xform,
+				1,
 				RTE_COMP_OP_STATELESS,
-				ZLIB_DECOMPRESS) < 0)
-			return TEST_FAILED;
+				ZLIB_DECOMPRESS) < 0) {
+			ret = TEST_FAILED;
+			goto exit;
+		}
 
 		/* Compress with Zlib, decompress with compressdev */
 		if (test_deflate_comp_decomp(&test_buffer, 1,
 				&i,
 				&compress_xform,
 				&ts_params->def_decomp_xform,
+				1,
 				RTE_COMP_OP_STATELESS,
-				ZLIB_COMPRESS) < 0)
-			return TEST_FAILED;
+				ZLIB_COMPRESS) < 0) {
+			ret = TEST_FAILED;
+			goto exit;
+		}
 	}
 
-	return TEST_SUCCESS;
+	ret = TEST_SUCCESS;
+
+exit:
+	rte_free(compress_xform);
+	return ret;
 }
 
 static int
@@ -775,6 +829,7 @@ test_compressdev_deflate_stateless_multi_op(void)
 			buf_idx,
 			&ts_params->def_comp_xform,
 			&ts_params->def_decomp_xform,
+			1,
 			RTE_COMP_OP_STATELESS,
 			ZLIB_DECOMPRESS) < 0)
 		return TEST_FAILED;
@@ -784,13 +839,13 @@ test_compressdev_deflate_stateless_multi_op(void)
 			buf_idx,
 			&ts_params->def_comp_xform,
 			&ts_params->def_decomp_xform,
+			1,
 			RTE_COMP_OP_STATELESS,
 			ZLIB_COMPRESS) < 0)
 		return TEST_FAILED;
 
 	return TEST_SUCCESS;
 }
-
 
 static int
 test_compressdev_deflate_stateless_multi_level(void)
@@ -799,29 +854,96 @@ test_compressdev_deflate_stateless_multi_level(void)
 	const char *test_buffer;
 	unsigned int level;
 	uint16_t i;
-	struct rte_comp_xform compress_xform;
+	int ret;
+	struct rte_comp_xform *compress_xform =
+			rte_malloc(NULL, sizeof(struct rte_comp_xform), 0);
 
-	memcpy(&compress_xform, &ts_params->def_comp_xform,
+	memcpy(compress_xform, ts_params->def_comp_xform,
 			sizeof(struct rte_comp_xform));
 
 	for (i = 0; i < RTE_DIM(compress_test_bufs); i++) {
 		test_buffer = compress_test_bufs[i];
 		for (level = RTE_COMP_LEVEL_MIN; level <= RTE_COMP_LEVEL_MAX;
 				level++) {
-			compress_xform.compress.level = level;
+			compress_xform->compress.level = level;
 			/* Compress with compressdev, decompress with Zlib */
 			if (test_deflate_comp_decomp(&test_buffer, 1,
 					&i,
 					&compress_xform,
 					&ts_params->def_decomp_xform,
+					1,
 					RTE_COMP_OP_STATELESS,
-					ZLIB_DECOMPRESS) < 0)
-				return TEST_FAILED;
+					ZLIB_DECOMPRESS) < 0) {
+				ret = TEST_FAILED;
+				goto exit;
+			}
 		}
 	}
 
-	return TEST_SUCCESS;
+	ret = TEST_SUCCESS;
+
+exit:
+	rte_free(compress_xform);
+	return ret;
 }
+
+#define NUM_SESSIONS 3
+static int
+test_compressdev_deflate_stateless_multi_session(void)
+{
+	struct comp_testsuite_params *ts_params = &testsuite_params;
+	uint16_t num_bufs = NUM_SESSIONS;
+	struct rte_comp_xform *compress_xforms[NUM_SESSIONS] = {NULL};
+	struct rte_comp_xform *decompress_xforms[NUM_SESSIONS] = {NULL};
+	const char *test_buffers[NUM_SESSIONS];
+	uint16_t i;
+	unsigned int level = RTE_COMP_LEVEL_MIN;
+	uint16_t buf_idx[num_bufs];
+
+	int ret;
+
+	/* Create multiple xforms with various levels */
+	for (i = 0; i < NUM_SESSIONS; i++) {
+		compress_xforms[i] = rte_malloc(NULL,
+				sizeof(struct rte_comp_xform), 0);
+		memcpy(compress_xforms[i], ts_params->def_comp_xform,
+				sizeof(struct rte_comp_xform));
+		compress_xforms[i]->compress.level = level;
+		level++;
+
+		decompress_xforms[i] = rte_malloc(NULL,
+				sizeof(struct rte_comp_xform), 0);
+		memcpy(decompress_xforms[i], ts_params->def_decomp_xform,
+				sizeof(struct rte_comp_xform));
+	}
+
+	for (i = 0; i < NUM_SESSIONS; i++) {
+		buf_idx[i] = 0;
+		/* Use the same buffer in all sessions */
+		test_buffers[i] = compress_test_bufs[0];
+	}
+	/* Compress with compressdev, decompress with Zlib */
+	if (test_deflate_comp_decomp(test_buffers, num_bufs,
+			buf_idx,
+			compress_xforms,
+			decompress_xforms,
+			NUM_SESSIONS,
+			RTE_COMP_OP_STATELESS,
+			ZLIB_DECOMPRESS) < 0) {
+		ret = TEST_FAILED;
+		goto exit;
+	}
+
+	ret = TEST_SUCCESS;
+exit:
+	for (i = 0; i < NUM_SESSIONS; i++) {
+		rte_free(compress_xforms[i]);
+		rte_free(decompress_xforms[i]);
+	}
+
+	return ret;
+}
+
 static struct unit_test_suite compressdev_testsuite  = {
 	.suite_name = "compressdev unit test suite",
 	.setup = testsuite_setup,
@@ -835,6 +957,8 @@ static struct unit_test_suite compressdev_testsuite  = {
 			test_compressdev_deflate_stateless_multi_op),
 		TEST_CASE_ST(generic_ut_setup, generic_ut_teardown,
 			test_compressdev_deflate_stateless_multi_level),
+		TEST_CASE_ST(generic_ut_setup, generic_ut_teardown,
+			test_compressdev_deflate_stateless_multi_session),
 		TEST_CASES_END() /**< NULL terminate unit test array */
 	}
 };
