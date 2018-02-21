@@ -257,7 +257,7 @@ typedef unsigned int (*compressdev_get_session_private_size_t)(
  *  - Returns -ENOMEM if the private session could not be allocated.
  */
 typedef int (*compressdev_configure_session_t)(struct rte_compressdev *dev,
-		struct rte_comp_xform *xform,
+		const struct rte_comp_xform *xform,
 		struct rte_comp_session *session,
 		struct rte_mempool *mp);
 

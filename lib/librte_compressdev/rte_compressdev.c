@@ -650,7 +650,7 @@ rte_compressdev_info_get(uint8_t dev_id, struct rte_compressdev_info *dev_info)
 int __rte_experimental
 rte_compressdev_session_init(uint8_t dev_id,
 		struct rte_comp_session *sess,
-		struct rte_comp_xform *xforms,
+		const struct rte_comp_xform *xforms,
 		struct rte_mempool *mp)
 {
 	struct rte_compressdev *dev;
