@@ -541,6 +541,11 @@ CONFIG_RTE_LIBRTE_COMPRESSDEV=y
 CONFIG_RTE_COMPRESS_MAX_DEVS=64
 
 #
+# Compile compressdev unit test
+#
+CONFIG_RTE_COMPRESSDEV_TEST=n
+
+#
 # Compile generic security library
 #
 CONFIG_RTE_LIBRTE_SECURITY=y
