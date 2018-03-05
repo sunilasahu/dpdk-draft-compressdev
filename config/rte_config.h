@@ -48,6 +48,9 @@
 #define RTE_ETHDEV_QUEUE_STAT_CNTRS 16
 #define RTE_ETHDEV_RXTX_CALLBACKS 1
 
+/* compressdev defines */
+#define RTE_COMPRESS_MAX_DEVS 64
+
 /* cryptodev defines */
 #define RTE_CRYPTO_MAX_DEVS 64
 #define RTE_CRYPTODEV_NAME_LEN 64
