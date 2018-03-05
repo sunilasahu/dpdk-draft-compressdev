@@ -41,7 +41,9 @@ enum rte_comp_op_status {
 
 /** Compression Algorithms */
 enum rte_comp_algorithm {
-	RTE_COMP_NULL = 0,
+	RTE_COMP_UNSPECIFIED = 0,
+	/** No Compression algorithm */
+	RTE_COMP_NULL,
 	/**< No compression.
 	 * Pass-through, data is copied unchanged from source buffer to
 	 * destination buffer.
