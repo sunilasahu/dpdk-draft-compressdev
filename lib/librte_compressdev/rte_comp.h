@@ -26,8 +26,6 @@ enum rte_comp_op_status {
 	/**< Operation completed successfully */
 	RTE_COMP_OP_STATUS_NOT_PROCESSED,
 	/**< Operation has not yet been processed by the device */
-	RTE_COMP_OP_STATUS_INVALID_SESSION,
-	/**< Operation failed due to invalid session arguments */
 	RTE_COMP_OP_STATUS_INVALID_ARGS,
 	/**< Operation failed due to invalid arguments in request */
 	RTE_COMP_OP_STATUS_ERROR,
@@ -128,6 +126,15 @@ enum rte_comp_xform_type {
 	/**< Compression service - decompress */
 };
 
+enum rte_comp_private_xform_mode {
+	RTE_COMP_PRIV_XFORM_SHAREABLE,
+	/**< private_xform can be attached
+	 * to multiple ops inflight in the device simultaneously
+	 */
+	RTE_COMP_PRIV_XFORM_NOT_SHAREABLE
+	/**< private_xform can only be used on one inflight op at a time. */
+};
+
 enum rte_comp_op_type {
 	RTE_COMP_OP_STATELESS,
 	/**< All data to be processed is submitted in the op, no state or history
@@ -149,7 +156,7 @@ struct rte_comp_deflate_params {
 	/**< Compression huffman encoding type */
 };
 
-/** Session Setup Data for compression */
+/** Setup Data for compression */
 struct rte_comp_compress_xform {
 	enum rte_comp_algorithm algo;
 	/**< Algorithm to use for compress operation */
@@ -169,7 +176,7 @@ struct rte_comp_compress_xform {
 };
 
 /**
- * Session Setup Data for decompression.
+ * Setup Data for decompression.
  */
 struct rte_comp_decompress_xform {
 	enum rte_comp_algorithm algo;
@@ -178,8 +185,8 @@ struct rte_comp_decompress_xform {
 	/**< Type of checksum to generate on the decompressed data */
 	uint32_t window_size;
 	/**< Max depth of sliding window which was used to generate compressed
-	 * data. If window size can't be supported by the PMD then session
-	 * setup should fail.
+	 * data. If window size can't be supported by the PMD then
+	 * setup of stream or private_xform should fail.
 	 */
 };
 
@@ -208,7 +215,6 @@ struct rte_comp_xform {
 };
 
 
-struct rte_comp_session;
 /**
  * Compression Operation.
  *
@@ -221,14 +227,23 @@ struct rte_comp_session;
 struct rte_comp_op {
 
 	enum rte_comp_op_type op_type;
-	void *stream_private;
-	/* Handle for an initialised stream, which holds state and history data.
-	 * rte_comp_stream_create() must be called for all data streams whether
-	 * op_type is STATEFUL or STATELESS and the resulting stream attached
-	 * to the one or more operations associated with the data stream.
-	 */
-	struct rte_comp_session *session;
-	/**< Handle for the initialised session context */
+	union {
+		void *private_xform;
+		/**< Stateless private PMD data derived from an rte_comp_xform.
+		 * A handle returned by rte_compressdev_private_xform_create()
+		 * must be attached to operations of op_type RTE_COMP_STATELESS.
+		 */
+		void *stream;
+		/**< Private PMD data derived initially from an rte_comp_xform,
+		 * which holds state and history data and evolves as operations
+		 * are processed. rte_comp_stream_create() must be called on a
+		 * device for all STATEFUL data streams and the resulting
+		 * stream attached to the one or more operations associated
+		 * with the data stream.
+		 * All operations in a stream must be sent to the same device.
+		 */
+	};
+
 	struct rte_mempool *mempool;
 	/**< Pool from which operation is allocated */
 	rte_iova_t phys_addr;
