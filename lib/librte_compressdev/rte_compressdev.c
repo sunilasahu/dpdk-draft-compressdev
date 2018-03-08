@@ -761,6 +761,56 @@ rte_compressdev_get_private_session_size(uint8_t dev_id)
 
 }
 
+
+int __rte_experimental
+rte_compressdev_stream_create(uint8_t dev_id,
+		struct rte_comp_xform *xform,
+		void **stream)
+{
+	struct rte_compressdev *dev;
+	int ret;
+
+	dev = rte_compressdev_pmd_get_dev(dev_id);
+
+	if (xform == NULL || dev == NULL || stream == NULL)
+		return -EINVAL;
+
+	RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->stream_create, -ENOTSUP);
+	ret = (*dev->dev_ops->stream_create)(dev, xform, stream);
+	if (ret < 0) {
+		COMPRESSDEV_LOG(ERR,
+			"dev_id %d failed to create stream: err=%d",
+			dev_id, ret);
+		return ret;
+	};
+
+	return 0;
+}
+
+
+int __rte_experimental
+rte_compressdev_stream_free(uint8_t dev_id, void *stream)
+{
+	struct rte_compressdev *dev;
+	int ret;
+
+	dev = rte_compressdev_pmd_get_dev(dev_id);
+
+	if (dev == NULL || stream == NULL)
+		return -EINVAL;
+
+	RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->stream_free, -ENOTSUP);
+	ret = dev->dev_ops->stream_free(dev, stream);
+	if (ret < 0) {
+		COMPRESSDEV_LOG(ERR,
+			"dev_id %d failed to free stream: err=%d",
+			dev_id, ret);
+		return ret;
+	};
+
+	return 0;
+}
+
 /** Initialise rte_comp_op mempool element */
 static void
 rte_comp_op_init(struct rte_mempool *mempool,
