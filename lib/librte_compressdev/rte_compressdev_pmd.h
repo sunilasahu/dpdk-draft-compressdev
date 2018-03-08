@@ -227,50 +227,6 @@ typedef int (*compressdev_queue_pair_release_t)(struct rte_compressdev *dev,
  */
 typedef uint32_t (*compressdev_queue_pair_count_t)(struct rte_compressdev *dev);
 
-/**
- * Get the size of a compressdev session
- *
- * @param dev
- *   Compress device
- * @return
- *  - On success returns the size of the session structure for device
- *  - On failure returns 0
- */
-typedef unsigned int (*compressdev_get_session_private_size_t)(
-		struct rte_compressdev *dev);
-
-/**
- * Configure a comp session on a device.
- *
- * @param dev
- *   Compress device
- * @param xform
- *   Single or chain of comp xforms
- * @param session
- *   Compressdev session
- * @param mp
- *   Mempool where the private session is allocated
- * @return
- *  - Returns 0 if private session structure have been created successfully.
- *  - Returns -EINVAL if input parameters are invalid.
- *  - Returns -ENOTSUP if comp device does not support the comp transform.
- *  - Returns -ENOMEM if the private session could not be allocated.
- */
-typedef int (*compressdev_configure_session_t)(struct rte_compressdev *dev,
-		struct rte_comp_xform *xform,
-		struct rte_comp_session *session,
-		struct rte_mempool *mp);
-
-/**
- * Free driver private session data.
- *
- * @param dev
- *   Compress device
- * @param sess
- *   Compressdev session
-*/
-typedef void (*compressdev_free_session_t)(struct rte_compressdev *dev,
-		struct rte_comp_session *sess);
 
 /**
  * Create driver private stream data.
@@ -308,6 +264,41 @@ typedef int (*compressdev_stream_create_t)(struct rte_compressdev *dev,
 typedef int (*compressdev_stream_free_t)(struct rte_compressdev *dev,
 		void *stream);
 
+/**
+ * Create driver private_xform data.
+ *
+ * @param dev
+ *   Compressdev device
+ * @param xform
+ *   xform data
+ * @param private_xform
+ *   ptr where handle of pmd's private_xform data should be stored
+ * @return
+ *  - if successful returns RTE_COMP_PRIV_XFORM_SHAREABLE/NOT_SHAREABLE
+ *    and valid private_xform handle
+ *  - <0 in error cases
+ *  - Returns -EINVAL if input parameters are invalid.
+ *  - Returns -ENOTSUP if comp device does not support the comp transform.
+ *  - Returns -ENOMEM if the private_xform could not be allocated.
+ */
+typedef int (*compressdev_private_xform_create_t)(struct rte_compressdev *dev,
+		struct rte_comp_xform *xform, void **private_xform);
+
+/**
+ * Free driver private_xform data.
+ *
+ * @param dev
+ *   Compressdev device
+ * @param private_xform
+ *   handle of pmd's private_xform data
+ * @return
+ *  - 0 if successful
+ *  - <0 in error cases
+ *  - Returns -EINVAL if input parameters are invalid.
+ *  - Returns -EBUSY if can't free private_xform due to inflight operations
+ */
+typedef int (*compressdev_private_xform_free_t)(struct rte_compressdev *dev,
+		void *private_xform);
 
 /** comp device operations function pointer table */
 struct rte_compressdev_ops {
@@ -330,17 +321,15 @@ struct rte_compressdev_ops {
 	compressdev_queue_pair_count_t queue_pair_count;
 	/**< Get count of the queue pairs. */
 
-	compressdev_get_session_private_size_t session_get_size;
-	/**< Return private session. */
-	compressdev_configure_session_t session_configure;
-	/**< Configure a comp session. */
-	compressdev_free_session_t session_clear;
-	/**< Clear a comp sessions private data. */
-
 	compressdev_stream_create_t stream_create;
 	/**< Create a comp stream and initialise its private data. */
 	compressdev_stream_free_t stream_free;
 	/**< Free a comp stream's private data. */
+
+	compressdev_private_xform_create_t private_xform_create;
+	/**< Create a comp private_xform and initialise its private data. */
+	compressdev_private_xform_free_t private_xform_free;
+	/**< Free a comp private_xform's data. */
 };
 
 
@@ -459,19 +448,6 @@ RTE_INIT(init_ ##driver_id);\
 static void init_ ##driver_id(void)\
 {\
 	driver_id = rte_compressdev_allocate_driver(&comp_drv, &(drv).driver);\
-}
-
-static inline void *
-get_session_private_data(const struct rte_comp_session *sess,
-		uint8_t driver_id) {
-	return sess->sess_private_data[driver_id];
-}
-
-static inline void
-set_session_private_data(struct rte_comp_session *sess,
-		uint8_t driver_id, void *private_data)
-{
-	sess->sess_private_data[driver_id] = private_data;
 }
 
 #ifdef __cplusplus

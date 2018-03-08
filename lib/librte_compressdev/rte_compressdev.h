@@ -585,110 +585,6 @@ rte_compressdev_enqueue_burst(uint8_t dev_id, uint16_t qp_id,
 }
 
 
-/** Compressdev session */
-struct rte_comp_session {
-	__extension__ void *sess_private_data[0];
-	/**< Private session material */
-};
-
-
-/**
- * Create compression session header (generic with no private data)
- *
- * @param mempool
- *   Symmetric session mempool to allocate session objects from
- * @return
- *  - On success return pointer to compression session
- *  - On failure returns NULL
- */
-struct rte_comp_session * __rte_experimental
-rte_compressdev_session_create(struct rte_mempool *mempool);
-
-/**
- * Frees comp session header, after checking that all
- * the device private data has been freed, returning it
- * to its original mempool.
- *
- * @param sess
- *   Session header to be freed
- *
- * @return
- *  - 0 if successful.
- *  - -EINVAL if session is NULL.
- *  - -EBUSY if not all device private data has been freed.
- */
-int __rte_experimental
-rte_compressdev_session_terminate(struct rte_comp_session *sess);
-
-/**
- * Fill out private session data for the device, based on its device id.
- * The same private session data is shared by all devices exposed by a driver
- * so this only needs to be called for one device per driver-type.
- * All private data stored must be shareable across devices, so read-only.
- * A session initialised for more than one device (of different driver types)
- * must used the same xform for each init.
- *
- * @param dev_id
- *   Compress device identifier
- * @param sess
- *   Session where the private data will be attached to
- * @param xforms
- *   Compress transform operations to apply on flow
- *   processed with this session
- * @param mempool
- *   Mempool from where the private data should be allocated
- *
- * @return
- *  - On success, zero.
- *  - -EINVAL if input parameters are invalid.
- *  - -ENOTSUP if comp device does not support the comp transform.
- *  - -ENOMEM if the private session could not be allocated.
- */
-int __rte_experimental
-rte_compressdev_session_init(uint8_t dev_id,
-			struct rte_comp_session *sess,
-			struct rte_comp_xform *xforms,
-			struct rte_mempool *mempool);
-
-/**
- * Frees private data for the device id, based on its device type,
- * returning it to its mempool.
- *
- * @param dev_id
- *   Compress device identifier
- * @param sess
- *   Session containing the reference to the private data
- *
- * @return
- *  - 0 if successful.
- *  - -EINVAL if device is invalid or session is NULL.
- */
-int __rte_experimental
-rte_compressdev_session_clear(uint8_t dev_id,
-			struct rte_comp_session *sess);
-
-/**
- * Get the size of the header session, for all registered drivers.
- *
- * @return
- *   Size of the header session.
- */
-unsigned int __rte_experimental
-rte_compressdev_get_header_session_size(void);
-
-/**
- * Get the size of the private session data for a device.
- *
- * @param dev_id
- *   Compress device identifier
- *
- * @return
- *   - Size of the private data, if successful
- *   - 0 if device is invalid or does not have private session
- */
-unsigned int __rte_experimental
-rte_compressdev_get_private_session_size(uint8_t dev_id);
-
 /**
  * This should alloc a stream from the device's mempool and initialise it.
  * The application should call this API when setting up for the stateful
@@ -735,6 +631,52 @@ rte_compressdev_stream_create(uint8_t dev_id, struct rte_comp_xform *xform,
  */
 int __rte_experimental
 rte_compressdev_stream_free(uint8_t dev_id, void *stream);
+
+/**
+ * This should alloc a private_xform from the device's mempool and initialise it.
+ * The application should call this API when setting up for stateless
+ * processing on a device. If it returns non-shareable, then the appl cannot
+ * share this handle with multiple in-flight ops and should call this API again
+ * to get a separate handle for every in-flight op.
+ * The handle returned is only valid for use with ops of op_type STATELESS.
+ *
+ * @param dev_id
+ *   Compress device identifier
+ * @param xform
+ *   xform data
+ * @param private_xform
+ *   Pointer to where PMD's private_xform handle should be stored
+ *
+ * @return
+ *  - if successful returns RTE_COMP_PRIV_XFORM_SHAREABLE/NOT_SHAREABLE
+ *    and valid private_xform handle
+ *  - <0 in error cases
+ *  - Returns -EINVAL if input parameters are invalid.
+ *  - Returns -ENOTSUP if comp device does not support the comp transform.
+ *  - Returns -ENOMEM if the private_xform could not be allocated.
+ */
+int __rte_experimental
+rte_compressdev_private_xform_create(uint8_t dev_id,
+		struct rte_comp_xform *xform,
+		void **private_xform);
+
+/**
+ * This should clear the private_xform and return it to the device's mempool.
+ *
+ * @param dev_id
+ *   Compress device identifier
+ *
+ * @param private_xform
+ *   PMD's private_xform data
+ *
+ * @return
+ *  - 0 if successful
+ *  - <0 in error cases
+ *  - Returns -EINVAL if input parameters are invalid.
+ *  - Returns -EBUSY if can't free private_xform due to inflight operations
+ */
+int __rte_experimental
+rte_compressdev_private_xform_free(uint8_t dev_id, void *private_xform);
 
 /**
  * Provide driver identifier.
