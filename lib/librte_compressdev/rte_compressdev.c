@@ -663,9 +663,9 @@ rte_compressdev_session_init(uint8_t dev_id,
 		return -EINVAL;
 
 	index = dev->driver_id;
-
 	if (sess->sess_private_data[index] == NULL) {
 		ret = dev->dev_ops->session_configure(dev, xforms, sess, mp);
+
 		if (ret < 0) {
 			COMPRESSDEV_LOG(ERR,
 				"dev_id %d failed to configure session details",
