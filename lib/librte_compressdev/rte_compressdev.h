@@ -691,27 +691,31 @@ rte_compressdev_get_private_session_size(uint8_t dev_id);
 
 /**
  * This should alloc a stream from the device's mempool and initialise it.
- * This handle will be passed to the PMD with every op in the stream.
+ * The application should call this API when setting up for the stateful
+ * processing of a set of data on a device. The API can be called multiple
+ * times to set up a stream for each data set. The handle returned is only for
+ * use with ops of op_type STATEFUL and must be passed to the PMD
+ * with every op in the data stream
  *
  * @param dev_id
  *   Compress device identifier
- * @param session
- *   Session previously allocated by
- *   *rte_compressdev_session_create*
+ * @param xform
+ *   xform data
  * @param stream
- *   Pointer to PMD's private stream data
- * @param op_type
- *   Op type for which the stream will be used
+ *   Pointer to where PMD's private stream handle should be stored
  *
  * @return
- *
- * TODO: Should qp_id also be added, with constraint that all ops in the same
- * stream should be sent to the same qp?
+ *  - 0 if successful and valid stream handle
+ *  - <0 in error cases
+ *  - Returns -EINVAL if input parameters are invalid.
+ *  - Returns -ENOTSUP if comp device does not support STATEFUL operations.
+ *  - Returns -ENOTSUP if comp device does not support the comp transform.
+ *  - Returns -ENOMEM if the private stream could not be allocated.
  *
  */
 int __rte_experimental
-rte_comp_stream_create(uint8_t dev_id, struct rte_comp_session *sess,
-			void **stream, enum rte_comp_op_type op_type);
+rte_compressdev_stream_create(uint8_t dev_id, struct rte_comp_xform *xform,
+		void **stream);
 
 /**
  * This should clear the stream and return it to the device's mempool.
@@ -722,11 +726,15 @@ rte_comp_stream_create(uint8_t dev_id, struct rte_comp_session *sess,
  * @param stream
  *   PMD's private stream data
  *
- *
  * @return
+ *  - 0 if successful
+ *  - <0 in error cases
+ *  - Returns -EINVAL if input parameters are invalid.
+ *  - Returns -ENOTSUP if comp device does not support STATEFUL operations.
+ *  - Returns -EBUSY if can't free stream as there are inflight operations
  */
 int __rte_experimental
-rte_comp_stream_free(uint8_t dev_id, void *stream);
+rte_compressdev_stream_free(uint8_t dev_id, void *stream);
 
 /**
  * Provide driver identifier.
