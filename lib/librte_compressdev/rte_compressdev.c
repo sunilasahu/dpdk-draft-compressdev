@@ -828,7 +828,7 @@ rte_compressdev_driver_id_get(const char *name)
 	const char *driver_name;
 
 	if (name == NULL) {
-		RTE_LOG(DEBUG, COMPRESSDEV, "name pointer NULL");
+		COMPRESSDEV_LOG(DEBUG, "name pointer NULL");
 		return -1;
 	}
 
