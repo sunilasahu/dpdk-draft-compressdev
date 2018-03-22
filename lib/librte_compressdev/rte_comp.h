@@ -39,18 +39,18 @@ enum rte_comp_op_status {
 
 /** Compression Algorithms */
 enum rte_comp_algorithm {
-	RTE_COMP_UNSPECIFIED = 0,
+	RTE_COMP_ALGO_UNSPECIFIED = 0,
 	/** No Compression algorithm */
-	RTE_COMP_NULL,
+	RTE_COMP_ALGO_NULL,
 	/**< No compression.
 	 * Pass-through, data is copied unchanged from source buffer to
 	 * destination buffer.
 	 */
-	RTE_COMP_DEFLATE,
+	RTE_COMP_ALGO_DEFLATE,
 	/**< DEFLATE compression algorithm
 	 * https://tools.ietf.org/html/rfc1951
 	 */
-	RTE_COMP_LZS,
+	RTE_COMP_ALGO_LZS,
 	/**< LZS compression algorithm
 	 * https://tools.ietf.org/html/rfc2395
 	 */
@@ -73,13 +73,13 @@ enum rte_comp_algorithm {
 
 /** Compression checksum types */
 enum rte_comp_checksum_type {
-	RTE_COMP_NONE,
+	RTE_COMP_CHECKSUM_NONE,
 	/**< No checksum generated */
-	RTE_COMP_CRC32,
+	RTE_COMP_CHECKSUM_CRC32,
 	/**< Generates a CRC32 checksum, as used by gzip */
-	RTE_COMP_ADLER32,
+	RTE_COMP_CHECKSM_ADLER32,
 	/**< Generates an Adler-32 checksum, as used by zlib */
-	RTE_COMP_CRC32_ADLER32,
+	RTE_COMP_CHECKSUM_CRC32_ADLER32,
 	/**< Generates both Adler-32 and CRC32 checksums, concatenated.
 	 * CRC32 is in the lower 32bits, Adler-32 in the upper 32 bits.
 	 */
@@ -88,11 +88,11 @@ enum rte_comp_checksum_type {
 
 /** Compression Huffman Type - used by DEFLATE algorithm */
 enum rte_comp_huffman {
-	RTE_COMP_DEFAULT,
+	RTE_COMP_HUFFMAN_DEFAULT,
 	/**< PMD may choose which Huffman codes to use */
-	RTE_COMP_FIXED,
+	RTE_COMP_HUFFMAN_FIXED,
 	/**< Use Fixed Huffman codes */
-	RTE_COMP_DYNAMIC,
+	RTE_COMP_HUFFMAN_DYNAMIC,
 	/**< Use Dynamic Huffman codes */
 };
 
@@ -113,7 +113,7 @@ enum rte_comp_flush_flag {
 	 * ops will be independent of ops processed before this.
 	 */
 	RTE_COMP_FLUSH_FINAL
-	/**< Same as RTE_COMP_FLUSH_FULL but if op.algo is RTE_COMP_DEFLATE
+	/**< Same as RTE_COMP_FLUSH_FULL but if op.algo is RTE_COMP_ALGO_DEFLATE
 	 * then bfinal bit is set in the last block.
 	 */
 };
@@ -316,7 +316,7 @@ struct rte_comp_op {
 	 * will be set to RTE_COMP_OP_STATUS_SUCCESS after operation
 	 * is successfully processed by a PMD
 	 */
-};
+} __rte_cache_aligned;
 
 
 /**

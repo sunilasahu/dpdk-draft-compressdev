@@ -94,7 +94,7 @@ struct rte_compressdev_capabilities {
 
 /** Macro used at end of comp PMD list */
 #define RTE_COMP_END_OF_CAPABILITIES_LIST() \
-	{ RTE_COMP_UNSPECIFIED }
+	{ RTE_COMP_ALGO_UNSPECIFIED }
 
 /**
  * compression device supported feature flags
