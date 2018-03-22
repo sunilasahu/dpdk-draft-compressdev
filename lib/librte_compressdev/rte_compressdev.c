@@ -62,8 +62,8 @@ struct rte_compressdev_global *rte_compressdev_globals = &compressdev_globals;
  */
 const char *
 rte_comp_algorithm_strings[] = {
-	[RTE_COMP_DEFLATE]		= "deflate",
-	[RTE_COMP_LZS]			= "lzs"
+	[RTE_COMP_ALGO_DEFLATE]		= "deflate",
+	[RTE_COMP_ALGO_LZS]		= "lzs"
 };
 
 
