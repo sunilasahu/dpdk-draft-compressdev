@@ -898,7 +898,7 @@ RTE_INIT(rte_compressdev_log);
 static void
 rte_compressdev_log(void)
 {
-	compressdev_logtype = rte_log_register("librte.compressdev");
+	compressdev_logtype = rte_log_register("lib.compressdev");
 	if (compressdev_logtype >= 0)
 		rte_log_set_level(compressdev_logtype, RTE_LOG_NOTICE);
 }
