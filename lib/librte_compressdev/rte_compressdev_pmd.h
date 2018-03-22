@@ -245,7 +245,7 @@ typedef uint32_t (*compressdev_queue_pair_count_t)(struct rte_compressdev *dev);
  *  - Returns -ENOMEM if the private stream could not be allocated.
  */
 typedef int (*compressdev_stream_create_t)(struct rte_compressdev *dev,
-		struct rte_comp_xform *xform, void **stream);
+		const struct rte_comp_xform *xform, void **stream);
 
 /**
  * Free driver private stream data.
@@ -282,7 +282,7 @@ typedef int (*compressdev_stream_free_t)(struct rte_compressdev *dev,
  *  - Returns -ENOMEM if the private_xform could not be allocated.
  */
 typedef int (*compressdev_private_xform_create_t)(struct rte_compressdev *dev,
-		struct rte_comp_xform *xform, void **private_xform);
+		const struct rte_comp_xform *xform, void **private_xform);
 
 /**
  * Free driver private_xform data.

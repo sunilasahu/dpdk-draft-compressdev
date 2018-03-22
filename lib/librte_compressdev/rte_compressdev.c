@@ -648,7 +648,7 @@ rte_compressdev_info_get(uint8_t dev_id, struct rte_compressdev_info *dev_info)
 
 int __rte_experimental
 rte_compressdev_private_xform_create(uint8_t dev_id,
-		struct rte_comp_xform *xform,
+		const struct rte_comp_xform *xform,
 		void **priv_xform)
 {
 	struct rte_compressdev *dev;
@@ -696,7 +696,7 @@ rte_compressdev_private_xform_free(uint8_t dev_id, void *priv_xform)
 
 int __rte_experimental
 rte_compressdev_stream_create(uint8_t dev_id,
-		struct rte_comp_xform *xform,
+		const struct rte_comp_xform *xform,
 		void **stream)
 {
 	struct rte_compressdev *dev;

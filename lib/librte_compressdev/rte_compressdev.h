@@ -610,7 +610,8 @@ rte_compressdev_enqueue_burst(uint8_t dev_id, uint16_t qp_id,
  *
  */
 int __rte_experimental
-rte_compressdev_stream_create(uint8_t dev_id, struct rte_comp_xform *xform,
+rte_compressdev_stream_create(uint8_t dev_id,
+		const struct rte_comp_xform *xform,
 		void **stream);
 
 /**
@@ -657,7 +658,7 @@ rte_compressdev_stream_free(uint8_t dev_id, void *stream);
  */
 int __rte_experimental
 rte_compressdev_private_xform_create(uint8_t dev_id,
-		struct rte_comp_xform *xform,
+		const struct rte_comp_xform *xform,
 		void **private_xform);
 
 /**
