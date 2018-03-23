@@ -96,6 +96,10 @@ struct rte_compressdev_capabilities {
 #define RTE_COMP_END_OF_CAPABILITIES_LIST() \
 	{ RTE_COMP_ALGO_UNSPECIFIED }
 
+const struct rte_compressdev_capabilities * __rte_experimental
+rte_compressdev_capability_get(uint8_t dev_id,
+			enum rte_comp_algorithm algo);
+
 /**
  * compression device supported feature flags
  *

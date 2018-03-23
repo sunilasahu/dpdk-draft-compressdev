@@ -71,6 +71,25 @@ rte_comp_algorithm_strings[] = {
 	(((x < y.min) || (x > y.max)) || \
 	(y.increment != 0 && (x % y.increment) != 0))
 
+const struct rte_compressdev_capabilities * __rte_experimental
+rte_compressdev_capability_get(uint8_t dev_id,
+			enum rte_comp_algorithm algo)
+{
+	const struct rte_compressdev_capabilities *capability;
+	struct rte_compressdev_info dev_info;
+	int i = 0;
+
+	memset(&dev_info, 0, sizeof(struct rte_compressdev_info));
+	rte_compressdev_info_get(dev_id, &dev_info);
+
+	while ((capability = &dev_info.capabilities[i++])->algo !=
+			RTE_COMP_ALGO_UNSPECIFIED){
+		if (capability->algo == algo)
+			return capability;
+	}
+
+	return NULL;
+}
 
 const char * __rte_experimental
 rte_compressdev_get_feature_name(uint64_t flag)
