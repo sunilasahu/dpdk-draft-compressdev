@@ -31,8 +31,16 @@ enum rte_comp_op_status {
 	/**< Error handling operation */
 	RTE_COMP_OP_STATUS_INVALID_STATE,
 	/**< Operation is invoked in invalid state */
-	RTE_COMP_OP_STATUS_OUT_OF_SPACE,
-	/**< Output buffer ran out of space before operation completed */
+	RTE_COMP_OP_STATUS_OUT_OF_SPACE_TERMINATED,
+	/**< Output buffer ran out of space before operation completed.
+	 * Error case. Application must resubmit all data with a larger
+	 * output buffer.
+	 */
+	RTE_COMP_OP_STATUS_OUT_OF_SPACE_RECOVERABLE,
+	/**< Output buffer ran out of space before operation completed, but this
+	 * is not an error case. Output data up to op.produced can be used and
+	 * next op in the stream should continue on from op.consumed+1.
+	 */
 };
 
 /** Compression Algorithms */

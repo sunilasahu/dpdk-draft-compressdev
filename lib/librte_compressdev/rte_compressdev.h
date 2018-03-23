@@ -483,7 +483,20 @@ struct rte_compressdev *rte_compressdevs;
  * The rte_compressdev_dequeue_burst() function does not provide any error
  * notification to avoid the corresponding overhead.
  *
- * Note: operation ordering is not maintained within the queue pair.
+ * @note: operation ordering is not maintained within the queue pair.
+ *
+ * @note: In case op status = OUT_OF_SPACE_TERMINATED, op.consumed=0 and the
+ * op must be resubmitted with the same input data and a larger output buffer.
+ * op.produced is usually 0, but in decompression cases a PMD may return > 0
+ * and the application may find it useful to inspect that data.
+ * This status is only returned on STATELESS ops.
+ *
+ * @note: In case op status = OUT_OF_SPACE_RECOVERABLE, op.produced can be used
+ * and next op in stream should continue on from op.consumed+1 with a fresh
+ * output buffer.
+ * Consumed=0, produced=0 is an unusual but allowed case. There may be useful
+ * state/history stored in the PMD, even though no output was produced yet.
+ *
  *
  * @param dev_id
  *   Compress device identifier
@@ -533,7 +546,7 @@ rte_compressdev_dequeue_burst(uint8_t dev_id, uint16_t qp_id,
  * as the size of the output data is different to the size of the input data.
  *
  * @note The flush flag only applies to operations which return SUCCESS.
- * In OUT_OF_SPACE case whether STATEFUL or STATELESS, data in dest buffer
+ * In OUT_OF_SPACE cases whether STATEFUL or STATELESS, data in dest buffer
  * is as if flush flag was FLUSH_NONE.
  * @note flush flag only applies in compression direction. It has no meaning
  * for decompression.
