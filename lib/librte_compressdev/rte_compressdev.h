@@ -76,7 +76,7 @@ struct rte_param_log2_range {
 	uint8_t increment;
 	/**< If a range of sizes are supported,
 	 * this parameter is used to indicate
-	 * increments in log base 2 byte value
+	 * increments in base 2 log byte value
 	 * that are supported between the minimum and maximum
 	 */
 };
@@ -88,7 +88,7 @@ struct rte_compressdev_capabilities {
 	uint64_t comp_feature_flags;
 	/**< Bitmask of flags for compression service features */
 	struct rte_param_log2_range window_size;
-	/**< Window size range in bytes */
+	/**< Window size range in base two log byte values */
 };
 
 

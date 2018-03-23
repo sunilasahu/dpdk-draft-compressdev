@@ -166,10 +166,10 @@ struct rte_comp_compress_xform {
 	}; /**< Algorithm specific parameters */
 	int level;
 	/**< Compression level */
-	uint32_t window_size;
-	/**< Depth of sliding window to be used. If window size can't be
-	 * supported by the PMD then it may fall back to a smaller size. This
-	 * is likely to result in a worse compression ratio.
+	uint8_t window_size;
+	/**< Base two log value of sliding window to be used. If window size
+	 * can't be supported by the PMD then it may fall back to a smaller
+	 * size. This is likely to result in a worse compression ratio.
 	 */
 	enum rte_comp_checksum_type chksum;
 	/**< Type of checksum to generate on the uncompressed data */
@@ -183,9 +183,9 @@ struct rte_comp_decompress_xform {
 	/**< Algorithm to use for decompression */
 	enum rte_comp_checksum_type chksum;
 	/**< Type of checksum to generate on the decompressed data */
-	uint32_t window_size;
-	/**< Max depth of sliding window which was used to generate compressed
-	 * data. If window size can't be supported by the PMD then
+	uint8_t window_size;
+	/**< Base two log value of sliding window which was used to generate
+	 * compressed data. If window size can't be supported by the PMD then
 	 * setup of stream or private_xform should fail.
 	 */
 };
