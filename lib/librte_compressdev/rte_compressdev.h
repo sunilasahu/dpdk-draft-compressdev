@@ -294,13 +294,12 @@ rte_compressdev_configure(uint8_t dev_id,
 			struct rte_compressdev_config *config);
 
 /**
- * Start an device.
+ * Start a device.
  *
- * The device start step is the last one and consists of setting the configured
- * offload features and in starting the transmit and the receive units of the
- * device.
- * On success, all basic functions exported by the API (link status,
- * receive/transmit, and so on) can be invoked.
+ * The device start step is called after configuring the device and setting up
+ * its queue_pairs.
+ * On success, data-path functions exported by the API (enqueue/dequeue, etc)
+ * can be invoked.
  *
  * @param dev_id
  *   Compress device identifier
@@ -312,7 +311,7 @@ int __rte_experimental
 rte_compressdev_start(uint8_t dev_id);
 
 /**
- * Stop an device. The device can be restarted with a call to
+ * Stop a device. The device can be restarted with a call to
  * rte_compressdev_start()
  *
  * @param dev_id
@@ -336,6 +335,7 @@ rte_compressdev_close(uint8_t dev_id);
 
 /**
  * Allocate and set up a receive queue pair for a device.
+ * This should only be called when the device is stopped.
  *
  *
  * @param dev_id

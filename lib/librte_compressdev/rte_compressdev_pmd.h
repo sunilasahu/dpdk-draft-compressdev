@@ -29,15 +29,11 @@ extern "C" {
 #include "rte_comp.h"
 #include "rte_compressdev.h"
 
-#define RTE_COMPRESSDEV_PMD_DEFAULT_MAX_NB_QPS		8
-
 #define RTE_COMPRESSDEV_PMD_NAME_ARG			("name")
-#define RTE_COMPRESSDEV_PMD_MAX_NB_QP_ARG		("max_nb_queue_pairs")
 #define RTE_COMPRESSDEV_PMD_SOCKET_ID_ARG		("socket_id")
 
 static const char * const compressdev_pmd_valid_params[] = {
 	RTE_COMPRESSDEV_PMD_NAME_ARG,
-	RTE_COMPRESSDEV_PMD_MAX_NB_QP_ARG,
 	RTE_COMPRESSDEV_PMD_SOCKET_ID_ARG
 };
 
@@ -49,7 +45,6 @@ struct rte_compressdev_pmd_init_params {
 	char name[RTE_COMPRESSDEV_NAME_MAX_LEN];
 	size_t private_data_size;
 	int socket_id;
-	unsigned int max_nb_queue_pairs;
 };
 
 /** Global structure used for maintaining state of allocated comp devices */
@@ -318,8 +313,6 @@ struct rte_compressdev_ops {
 	/**< Set up a device queue pair. */
 	compressdev_queue_pair_release_t queue_pair_release;
 	/**< Release a queue pair. */
-	compressdev_queue_pair_count_t queue_pair_count;
-	/**< Get count of the queue pairs. */
 
 	compressdev_stream_create_t stream_create;
 	/**< Create a comp stream and initialise its private data. */
