@@ -77,7 +77,7 @@ enum rte_comp_checksum_type {
 	/**< No checksum generated */
 	RTE_COMP_CHECKSUM_CRC32,
 	/**< Generates a CRC32 checksum, as used by gzip */
-	RTE_COMP_CHECKSM_ADLER32,
+	RTE_COMP_CHECKSUM_ADLER32,
 	/**< Generates an Adler-32 checksum, as used by zlib */
 	RTE_COMP_CHECKSUM_CRC32_ADLER32,
 	/**< Generates both Adler-32 and CRC32 checksums, concatenated.
