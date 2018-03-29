@@ -62,8 +62,8 @@ struct rte_compressdev_global *rte_compressdev_globals = &compressdev_globals;
  */
 const char *
 rte_comp_algorithm_strings[] = {
-	[RTE_COMP_DEFLATE]		= "deflate",
-	[RTE_COMP_LZS]			= "lzs"
+	[RTE_COMP_ALGO_DEFLATE]		= "deflate",
+	[RTE_COMP_ALGO_LZS]		= "lzs"
 };
 
 
@@ -646,120 +646,103 @@ rte_compressdev_info_get(uint8_t dev_id, struct rte_compressdev_info *dev_info)
 	dev_info->driver_name = dev->device->driver->name;
 }
 
-
 int __rte_experimental
-rte_compressdev_session_init(uint8_t dev_id,
-		struct rte_comp_session *sess,
-		struct rte_comp_xform *xforms,
-		struct rte_mempool *mp)
+rte_compressdev_private_xform_create(uint8_t dev_id,
+		const struct rte_comp_xform *xform,
+		void **priv_xform)
 {
 	struct rte_compressdev *dev;
-	uint8_t index;
 	int ret;
 
 	dev = rte_compressdev_pmd_get_dev(dev_id);
 
-	if (sess == NULL || xforms == NULL || dev == NULL)
+	if (xform == NULL || priv_xform == NULL || dev == NULL)
 		return -EINVAL;
 
-	index = dev->driver_id;
-	if (sess->sess_private_data[index] == NULL) {
-		ret = dev->dev_ops->session_configure(dev, xforms, sess, mp);
-
-		if (ret < 0) {
-			COMPRESSDEV_LOG(ERR,
-				"dev_id %d failed to configure session details",
-				dev_id);
-			return ret;
-		}
-	}
-
-	return 0;
-}
-
-struct rte_comp_session * __rte_experimental
-rte_compressdev_session_create(struct rte_mempool *mp)
-{
-	struct rte_comp_session *sess;
-
-	/* Allocate a session structure from the session pool */
-	if (rte_mempool_get(mp, (void *)&sess)) {
-		COMPRESSDEV_LOG(ERR, "couldn't get object from session mempool");
-		return NULL;
-	}
-
-	/* Clear device session pointer */
-	memset(sess, 0, (sizeof(void *) * nb_drivers));
-
-	return sess;
-}
-
-int __rte_experimental
-rte_compressdev_session_clear(uint8_t dev_id,
-		struct rte_comp_session *sess)
-{
-	struct rte_compressdev *dev;
-
-	dev = rte_compressdev_pmd_get_dev(dev_id);
-
-	if (dev == NULL || sess == NULL)
-		return -EINVAL;
-
-	dev->dev_ops->session_clear(dev, sess);
+	RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->private_xform_create, -ENOTSUP);
+	ret = (*dev->dev_ops->private_xform_create)(dev, xform, priv_xform);
+	if (ret < 0) {
+		COMPRESSDEV_LOG(ERR,
+			"dev_id %d failed to create private_xform: err=%d",
+			dev_id, ret);
+		return ret;
+	};
 
 	return 0;
 }
 
 int __rte_experimental
-rte_compressdev_session_terminate(struct rte_comp_session *sess)
+rte_compressdev_private_xform_free(uint8_t dev_id, void *priv_xform)
 {
-	uint8_t i;
-	void *sess_priv;
-	struct rte_mempool *sess_mp;
+	struct rte_compressdev *dev;
+	int ret;
 
-	if (sess == NULL)
+	dev = rte_compressdev_pmd_get_dev(dev_id);
+
+	if (dev == NULL || priv_xform == NULL)
 		return -EINVAL;
 
-	/* Check that all device private data has been freed */
-	for (i = 0; i < nb_drivers; i++) {
-		sess_priv = get_session_private_data(sess, i);
-		if (sess_priv != NULL)
-			return -EBUSY;
-	}
-
-	/* Return session to mempool */
-	sess_mp = rte_mempool_from_obj(sess);
-	rte_mempool_put(sess_mp, sess);
+	RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->private_xform_free, -ENOTSUP);
+	ret = dev->dev_ops->private_xform_free(dev, priv_xform);
+	if (ret < 0) {
+		COMPRESSDEV_LOG(ERR,
+			"dev_id %d failed to free private xform: err=%d",
+			dev_id, ret);
+		return ret;
+	};
 
 	return 0;
 }
 
-unsigned int __rte_experimental
-rte_compressdev_get_header_session_size(void)
-{
-	/*
-	 * Header contains pointers to the private data
-	 * of all registered drivers
-	 */
-	return (sizeof(void *) * nb_drivers);
-}
-
-unsigned int __rte_experimental
-rte_compressdev_get_private_session_size(uint8_t dev_id)
+int __rte_experimental
+rte_compressdev_stream_create(uint8_t dev_id,
+		const struct rte_comp_xform *xform,
+		void **stream)
 {
 	struct rte_compressdev *dev;
-
-	if (!rte_compressdev_pmd_is_valid_dev(dev_id))
-		return 0;
+	int ret;
 
 	dev = rte_compressdev_pmd_get_dev(dev_id);
 
-	if (*dev->dev_ops->session_get_size == NULL)
-		return 0;
+	if (xform == NULL || dev == NULL || stream == NULL)
+		return -EINVAL;
 
-	return (*dev->dev_ops->session_get_size)(dev);
+	RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->stream_create, -ENOTSUP);
+	ret = (*dev->dev_ops->stream_create)(dev, xform, stream);
+	if (ret < 0) {
+		COMPRESSDEV_LOG(ERR,
+			"dev_id %d failed to create stream: err=%d",
+			dev_id, ret);
+		return ret;
+	};
 
+	return 0;
 }
+
+
+int __rte_experimental
+rte_compressdev_stream_free(uint8_t dev_id, void *stream)
+{
+	struct rte_compressdev *dev;
+	int ret;
+
+	dev = rte_compressdev_pmd_get_dev(dev_id);
+
+	if (dev == NULL || stream == NULL)
+		return -EINVAL;
+
+	RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->stream_free, -ENOTSUP);
+	ret = dev->dev_ops->stream_free(dev, stream);
+	if (ret < 0) {
+		COMPRESSDEV_LOG(ERR,
+			"dev_id %d failed to free stream: err=%d",
+			dev_id, ret);
+		return ret;
+	};
+
+	return 0;
+}
+
 
 /** Initialise rte_comp_op mempool element */
 static void
@@ -845,7 +828,7 @@ rte_compressdev_driver_id_get(const char *name)
 	const char *driver_name;
 
 	if (name == NULL) {
-		RTE_LOG(DEBUG, COMPRESSDEV, "name pointer NULL");
+		COMPRESSDEV_LOG(DEBUG, "name pointer NULL");
 		return -1;
 	}
 

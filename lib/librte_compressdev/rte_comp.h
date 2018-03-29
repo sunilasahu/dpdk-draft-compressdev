@@ -26,8 +26,6 @@ enum rte_comp_op_status {
 	/**< Operation completed successfully */
 	RTE_COMP_OP_STATUS_NOT_PROCESSED,
 	/**< Operation has not yet been processed by the device */
-	RTE_COMP_OP_STATUS_INVALID_SESSION,
-	/**< Operation failed due to invalid session arguments */
 	RTE_COMP_OP_STATUS_INVALID_ARGS,
 	/**< Operation failed due to invalid arguments in request */
 	RTE_COMP_OP_STATUS_ERROR,
@@ -41,18 +39,18 @@ enum rte_comp_op_status {
 
 /** Compression Algorithms */
 enum rte_comp_algorithm {
-	RTE_COMP_UNSPECIFIED = 0,
+	RTE_COMP_ALGO_UNSPECIFIED = 0,
 	/** No Compression algorithm */
-	RTE_COMP_NULL,
+	RTE_COMP_ALGO_NULL,
 	/**< No compression.
 	 * Pass-through, data is copied unchanged from source buffer to
 	 * destination buffer.
 	 */
-	RTE_COMP_DEFLATE,
+	RTE_COMP_ALGO_DEFLATE,
 	/**< DEFLATE compression algorithm
 	 * https://tools.ietf.org/html/rfc1951
 	 */
-	RTE_COMP_LZS,
+	RTE_COMP_ALGO_LZS,
 	/**< LZS compression algorithm
 	 * https://tools.ietf.org/html/rfc2395
 	 */
@@ -75,13 +73,13 @@ enum rte_comp_algorithm {
 
 /** Compression checksum types */
 enum rte_comp_checksum_type {
-	RTE_COMP_NONE,
+	RTE_COMP_CHECKSUM_NONE,
 	/**< No checksum generated */
-	RTE_COMP_CRC32,
+	RTE_COMP_CHECKSUM_CRC32,
 	/**< Generates a CRC32 checksum, as used by gzip */
-	RTE_COMP_ADLER32,
+	RTE_COMP_CHECKSUM_ADLER32,
 	/**< Generates an Adler-32 checksum, as used by zlib */
-	RTE_COMP_CRC32_ADLER32,
+	RTE_COMP_CHECKSUM_CRC32_ADLER32,
 	/**< Generates both Adler-32 and CRC32 checksums, concatenated.
 	 * CRC32 is in the lower 32bits, Adler-32 in the upper 32 bits.
 	 */
@@ -90,11 +88,11 @@ enum rte_comp_checksum_type {
 
 /** Compression Huffman Type - used by DEFLATE algorithm */
 enum rte_comp_huffman {
-	RTE_COMP_DEFAULT,
+	RTE_COMP_HUFFMAN_DEFAULT,
 	/**< PMD may choose which Huffman codes to use */
-	RTE_COMP_FIXED,
+	RTE_COMP_HUFFMAN_FIXED,
 	/**< Use Fixed Huffman codes */
-	RTE_COMP_DYNAMIC,
+	RTE_COMP_HUFFMAN_DYNAMIC,
 	/**< Use Dynamic Huffman codes */
 };
 
@@ -115,7 +113,7 @@ enum rte_comp_flush_flag {
 	 * ops will be independent of ops processed before this.
 	 */
 	RTE_COMP_FLUSH_FINAL
-	/**< Same as RTE_COMP_FLUSH_FULL but if op.algo is RTE_COMP_DEFLATE
+	/**< Same as RTE_COMP_FLUSH_FULL but if op.algo is RTE_COMP_ALGO_DEFLATE
 	 * then bfinal bit is set in the last block.
 	 */
 };
@@ -126,6 +124,15 @@ enum rte_comp_xform_type {
 	/**< Compression service - compress */
 	RTE_COMP_DECOMPRESS,
 	/**< Compression service - decompress */
+};
+
+enum rte_comp_private_xform_mode {
+	RTE_COMP_PRIV_XFORM_SHAREABLE,
+	/**< private_xform can be attached
+	 * to multiple ops inflight in the device simultaneously
+	 */
+	RTE_COMP_PRIV_XFORM_NOT_SHAREABLE
+	/**< private_xform can only be used on one inflight op at a time. */
 };
 
 enum rte_comp_op_type {
@@ -149,7 +156,7 @@ struct rte_comp_deflate_params {
 	/**< Compression huffman encoding type */
 };
 
-/** Session Setup Data for compression */
+/** Setup Data for compression */
 struct rte_comp_compress_xform {
 	enum rte_comp_algorithm algo;
 	/**< Algorithm to use for compress operation */
@@ -159,27 +166,27 @@ struct rte_comp_compress_xform {
 	}; /**< Algorithm specific parameters */
 	int level;
 	/**< Compression level */
-	uint32_t window_size;
-	/**< Depth of sliding window to be used. If window size can't be
-	 * supported by the PMD then it may fall back to a smaller size. This
-	 * is likely to result in a worse compression ratio.
+	uint8_t window_size;
+	/**< Base two log value of sliding window to be used. If window size
+	 * can't be supported by the PMD then it may fall back to a smaller
+	 * size. This is likely to result in a worse compression ratio.
 	 */
 	enum rte_comp_checksum_type chksum;
 	/**< Type of checksum to generate on the uncompressed data */
 };
 
 /**
- * Session Setup Data for decompression.
+ * Setup Data for decompression.
  */
 struct rte_comp_decompress_xform {
 	enum rte_comp_algorithm algo;
 	/**< Algorithm to use for decompression */
 	enum rte_comp_checksum_type chksum;
 	/**< Type of checksum to generate on the decompressed data */
-	uint32_t window_size;
-	/**< Max depth of sliding window which was used to generate compressed
-	 * data. If window size can't be supported by the PMD then session
-	 * setup should fail.
+	uint8_t window_size;
+	/**< Base two log value of sliding window which was used to generate
+	 * compressed data. If window size can't be supported by the PMD then
+	 * setup of stream or private_xform should fail.
 	 */
 };
 
@@ -208,7 +215,6 @@ struct rte_comp_xform {
 };
 
 
-struct rte_comp_session;
 /**
  * Compression Operation.
  *
@@ -221,14 +227,23 @@ struct rte_comp_session;
 struct rte_comp_op {
 
 	enum rte_comp_op_type op_type;
-	void *stream_private;
-	/* Handle for an initialised stream, which holds state and history data.
-	 * rte_comp_stream_create() must be called for all data streams whether
-	 * op_type is STATEFUL or STATELESS and the resulting stream attached
-	 * to the one or more operations associated with the data stream.
-	 */
-	struct rte_comp_session *session;
-	/**< Handle for the initialised session context */
+	union {
+		void *private_xform;
+		/**< Stateless private PMD data derived from an rte_comp_xform.
+		 * A handle returned by rte_compressdev_private_xform_create()
+		 * must be attached to operations of op_type RTE_COMP_STATELESS.
+		 */
+		void *stream;
+		/**< Private PMD data derived initially from an rte_comp_xform,
+		 * which holds state and history data and evolves as operations
+		 * are processed. rte_comp_stream_create() must be called on a
+		 * device for all STATEFUL data streams and the resulting
+		 * stream attached to the one or more operations associated
+		 * with the data stream.
+		 * All operations in a stream must be sent to the same device.
+		 */
+	};
+
 	struct rte_mempool *mempool;
 	/**< Pool from which operation is allocated */
 	rte_iova_t phys_addr;
@@ -301,7 +316,7 @@ struct rte_comp_op {
 	 * will be set to RTE_COMP_OP_STATUS_SUCCESS after operation
 	 * is successfully processed by a PMD
 	 */
-};
+} __rte_cache_aligned;
 
 
 /**
