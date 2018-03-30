@@ -640,8 +640,8 @@ int __rte_experimental
 rte_compressdev_stream_free(uint8_t dev_id, void *stream);
 
 /**
- * This should alloc a private_xform from the device's mempool and initialise it.
- * The application should call this API when setting up for stateless
+ * This should alloc a private_xform from the device's mempool and initialise
+ * it. The application should call this API when setting up for stateless
  * processing on a device. If it returns non-shareable, then the appl cannot
  * share this handle with multiple in-flight ops and should call this API again
  * to get a separate handle for every in-flight op.

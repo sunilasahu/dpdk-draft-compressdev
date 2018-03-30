@@ -137,13 +137,13 @@ enum rte_comp_private_xform_mode {
 
 enum rte_comp_op_type {
 	RTE_COMP_OP_STATELESS,
-	/**< All data to be processed is submitted in the op, no state or history
-	 * from previous ops is used and none will be stored for future ops.
-	 * Flush flag must be set to either FLUSH_FULL or FLUSH_FINAL.
+	/**< All data to be processed is submitted in the op, no state or
+	 * history from previous ops is used and none will be stored for future
+	 * ops. Flush flag must be set to either FLUSH_FULL or FLUSH_FINAL.
 	 */
 	RTE_COMP_OP_STATEFUL
-	/**< There may be more data to be processed after this op, it's part of a
-	 * stream of data. State and history from previous ops can be used
+	/**< There may be more data to be processed after this op, it's part of
+	 * a stream of data. State and history from previous ops can be used
 	 * and resulting state and history can be stored for future ops,
 	 * depending on flush flag.
 	 */
@@ -236,8 +236,8 @@ struct rte_comp_op {
 		void *stream;
 		/**< Private PMD data derived initially from an rte_comp_xform,
 		 * which holds state and history data and evolves as operations
-		 * are processed. rte_comp_stream_create() must be called on a
-		 * device for all STATEFUL data streams and the resulting
+		 * are processed. rte_compressdev_stream_create() must be called
+		 * on a device for all STATEFUL data streams and the resulting
 		 * stream attached to the one or more operations associated
 		 * with the data stream.
 		 * All operations in a stream must be sent to the same device.

@@ -104,7 +104,7 @@ rte_compressdev_pmd_create(const char *name,
 	/* allocate device structure */
 	compressdev = rte_compressdev_pmd_allocate(name, params->socket_id);
 	if (compressdev == NULL) {
-		COMPRESSDEV_LOG(ERR, "[%s] Failed to allocate comp device for %s",
+		COMPRESSDEV_LOG(ERR, "[%s] Failed to allocate comp device %s",
 				device->driver->name, name);
 		return NULL;
 	}
