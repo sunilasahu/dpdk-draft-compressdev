@@ -276,6 +276,10 @@ struct rte_compressdev_config {
 	/**< Socket on which to allocate resources */
 	uint16_t nb_queue_pairs;
 	/**< Total number of queue pairs to configure on a device */
+	uint16_t max_nb_priv_xforms;
+	/**< Max number of private_xforms which will be created on the device */
+	uint16_t max_nb_streams;
+	/**< Max number of streams which will be created on the device */
 };
 
 /**
