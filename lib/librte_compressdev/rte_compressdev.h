@@ -175,7 +175,9 @@ struct rte_compressdev_info {
 	const struct rte_compressdev_capabilities *capabilities;
 	/**< Array of devices supported capabilities */
 	unsigned int max_nb_queue_pairs;
-	/**< Maximum number of queues pairs supported by device. */
+	/**< Maximum number of queues pairs supported by device.
+	 * (If 0, there is no limit in maximum number of queue pairs)
+	 */
 };
 
 

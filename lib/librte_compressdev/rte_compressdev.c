@@ -398,7 +398,8 @@ rte_compressdev_queue_pairs_config(struct rte_compressdev *dev,
 	RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->dev_infos_get, -ENOTSUP);
 	(*dev->dev_ops->dev_infos_get)(dev, &dev_info);
 
-	if (nb_qpairs > (dev_info.max_nb_queue_pairs)) {
+	if ((dev_info.max_nb_queue_pairs != 0) &&
+			(nb_qpairs > dev_info.max_nb_queue_pairs)) {
 		COMPRESSDEV_LOG(ERR, "Invalid num queue_pairs (%u) for dev %u",
 				nb_qpairs, dev->data->dev_id);
 		return -EINVAL;
