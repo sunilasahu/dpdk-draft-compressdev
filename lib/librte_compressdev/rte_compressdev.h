@@ -22,8 +22,6 @@ extern "C" {
 #include "rte_dev.h"
 #include <rte_common.h>
 
-extern const char **rte_cyptodev_names;
-
 /* Logging Macros */
 extern int compressdev_logtype;
 #define COMPRESSDEV_LOG(level, fmt, args...) \
