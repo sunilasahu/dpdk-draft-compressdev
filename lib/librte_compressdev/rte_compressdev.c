@@ -80,6 +80,10 @@ rte_compressdev_capability_get(uint8_t dev_id,
 	int i = 0;
 
 	memset(&dev_info, 0, sizeof(struct rte_compressdev_info));
+	if (dev_id >= compressdev_globals.nb_devs) {
+		COMPRESSDEV_LOG(ERR, "Invalid dev_id=%d", dev_id);
+		return NULL;
+	}
 	rte_compressdev_info_get(dev_id, &dev_info);
 
 	while ((capability = &dev_info.capabilities[i++])->algo !=
