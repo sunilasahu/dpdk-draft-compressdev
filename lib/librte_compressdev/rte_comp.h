@@ -186,7 +186,8 @@ struct rte_comp_compress_xform {
 	/**< Type of checksum to generate on the uncompressed data */
 	enum rte_comp_hash_algorithm hash_algo;
 	/**< Hash algorithm to be used with compress operation. Hash is always
-	 * done on plaintext.*/
+	 * done on plaintext.
+	 */
 };
 
 /**
@@ -204,7 +205,8 @@ struct rte_comp_decompress_xform {
 	 */
 	enum rte_comp_hash_algorithm hash_algo;
 	/**< Hash algorithm to be used with compress operation. Hash is always
-	 * done on plaintext.*/
+	 * done on plaintext.
+	 */
 };
 
 /**
