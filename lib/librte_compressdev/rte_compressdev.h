@@ -22,8 +22,6 @@ extern "C" {
 #include "rte_dev.h"
 #include <rte_common.h>
 
-extern const char **rte_cyptodev_names;
-
 /* Logging Macros */
 extern int compressdev_logtype;
 #define COMPRESSDEV_LOG(level, fmt, args...) \
@@ -95,6 +93,10 @@ struct rte_compressdev_capabilities {
 /** Macro used at end of comp PMD list */
 #define RTE_COMP_END_OF_CAPABILITIES_LIST() \
 	{ RTE_COMP_ALGO_UNSPECIFIED }
+
+const struct rte_compressdev_capabilities * __rte_experimental
+rte_compressdev_capability_get(uint8_t dev_id,
+			enum rte_comp_algorithm algo);
 
 /**
  * compression device supported feature flags
@@ -173,7 +175,9 @@ struct rte_compressdev_info {
 	const struct rte_compressdev_capabilities *capabilities;
 	/**< Array of devices supported capabilities */
 	unsigned int max_nb_queue_pairs;
-	/**< Maximum number of queues pairs supported by device. */
+	/**< Maximum number of queues pairs supported by device.
+	 * (If 0, there is no limit in maximum number of queue pairs)
+	 */
 };
 
 
@@ -272,6 +276,10 @@ struct rte_compressdev_config {
 	/**< Socket on which to allocate resources */
 	uint16_t nb_queue_pairs;
 	/**< Total number of queue pairs to configure on a device */
+	uint16_t max_nb_priv_xforms;
+	/**< Max number of private_xforms which will be created on the device */
+	uint16_t max_nb_streams;
+	/**< Max number of streams which will be created on the device */
 };
 
 /**
@@ -294,13 +302,12 @@ rte_compressdev_configure(uint8_t dev_id,
 			struct rte_compressdev_config *config);
 
 /**
- * Start an device.
+ * Start a device.
  *
- * The device start step is the last one and consists of setting the configured
- * offload features and in starting the transmit and the receive units of the
- * device.
- * On success, all basic functions exported by the API (link status,
- * receive/transmit, and so on) can be invoked.
+ * The device start step is called after configuring the device and setting up
+ * its queue_pairs.
+ * On success, data-path functions exported by the API (enqueue/dequeue, etc)
+ * can be invoked.
  *
  * @param dev_id
  *   Compress device identifier
@@ -312,7 +319,7 @@ int __rte_experimental
 rte_compressdev_start(uint8_t dev_id);
 
 /**
- * Stop an device. The device can be restarted with a call to
+ * Stop a device. The device can be restarted with a call to
  * rte_compressdev_start()
  *
  * @param dev_id
@@ -336,6 +343,7 @@ rte_compressdev_close(uint8_t dev_id);
 
 /**
  * Allocate and set up a receive queue pair for a device.
+ * This should only be called when the device is stopped.
  *
  *
  * @param dev_id
@@ -634,8 +642,8 @@ int __rte_experimental
 rte_compressdev_stream_free(uint8_t dev_id, void *stream);
 
 /**
- * This should alloc a private_xform from the device's mempool and initialise it.
- * The application should call this API when setting up for stateless
+ * This should alloc a private_xform from the device's mempool and initialise
+ * it. The application should call this API when setting up for stateless
  * processing on a device. If it returns non-shareable, then the appl cannot
  * share this handle with multiple in-flight ops and should call this API again
  * to get a separate handle for every in-flight op.

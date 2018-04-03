@@ -61,13 +61,6 @@ rte_compressdev_pmd_parse_input_args(
 			return -EINVAL;
 
 		ret = rte_kvargs_process(kvlist,
-				RTE_COMPRESSDEV_PMD_MAX_NB_QP_ARG,
-				&rte_compressdev_pmd_parse_uint_arg,
-				&params->max_nb_queue_pairs);
-		if (ret < 0)
-			goto free_kvlist;
-
-		ret = rte_kvargs_process(kvlist,
 				RTE_COMPRESSDEV_PMD_SOCKET_ID_ARG,
 				&rte_compressdev_pmd_parse_uint_arg,
 				&params->socket_id);
@@ -104,14 +97,14 @@ rte_compressdev_pmd_create(const char *name,
 			device->driver->name, name);
 
 	COMPRESSDEV_LOG(INFO,
-	"[%s] - Init parameters - name: %s, socket id: %d, max queue pairs: %u",
+	"[%s] - Init parameters - name: %s, socket id: %d",
 			device->driver->name, name,
-			params->socket_id, params->max_nb_queue_pairs);
+			params->socket_id);
 
 	/* allocate device structure */
 	compressdev = rte_compressdev_pmd_allocate(name, params->socket_id);
 	if (compressdev == NULL) {
-		COMPRESSDEV_LOG(ERR, "[%s] Failed to allocate comp device for %s",
+		COMPRESSDEV_LOG(ERR, "[%s] Failed to allocate comp device %s",
 				device->driver->name, name);
 		return NULL;
 	}
