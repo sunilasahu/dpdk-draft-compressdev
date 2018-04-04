@@ -216,7 +216,7 @@ Compression Operation
 DPDK compression supports two types of compression methodologies:
 -	Stateless - each data object is compressed individually without any reference
 to previous data,
--	Stateful -  each data object is compressed with reference to previous data 
+-	Stateful -  each data object is compressed with reference to previous data
 object i.e. history of data is needed for compression / decompression.
 For more explanation, please refer RFC https://www.ietf.org/rfc/rfc1951.txt
 
@@ -225,7 +225,7 @@ Operation Representation
 
 Compression operation is described via ``struct rte_comp_op``. The operation structure
 includes the operation type (stateless or stateful), the operation status
-and the priv_xform/stream handle, source, destination and checksum buffer 
+and the priv_xform/stream handle, source, destination and checksum buffer
 pointers. It also contains the source mempool for the operation are allocated
 from. PMD consumes the input as mentioned in consumed field and update
 produced with amount of data of written into destination buffer along with
@@ -240,7 +240,7 @@ Application software is responsible for specifying all the operation specific
 fields in the ``rte_comp_op`` structure which are then used by the compression PMD
 to process the requested operation.
 
-.. code-block:: c 
+.. code-block:: c
 
 	struct rte_comp_op {
 
@@ -381,7 +381,7 @@ mbuf-chain and enqueue it for processing. Alternatively, application
 can also call enqueue_burst() multiple times for each of them sequentially
 doing stateful processing. See *Compression API Stateful Operation* for
 stateful processing.
-	
+
 Operation Status
 ~~~~~~~~~~~~~~~~
 Each operation carry a status information updated by PMD after its processing.
@@ -389,23 +389,23 @@ following are currently supported status:
 
 - RTE_COMP_OP_STATUS_SUCCESS,
 	Operation is successfully completed.
-	
+
 - RTE_COMP_OP_STATUS_NOT_PROCESSED,
 	Operation has not yet been processed by the device
-	
+
 - RTE_COMP_OP_STATUS_INVALID_ARGS,
 	Operation failed due to invalid arguments in request
-	
+
 - RTE_COMP_OP_STATUS_ERROR,
 	Operation failed because of internal error
-	
+
 - RTE_COMP_OP_STATUS_INVALID_STATE,
 	Operation is invoked in invalid state
-	
+
 - RTE_COMP_OP_STATUS_OUT_OF_SPACE_TERMINATED,
 	Output buffer ran out of space during processing. Error case,
 	PMD cannot continue from here.
-	
+
 - RTE_COMP_OP_STATUS_OUT_OF_SPACE_RECOVERABLE,
 	Output buffer ran out of space before operation completed, but this
 	is not an error case. Output data up to op.produced can be used and
@@ -413,13 +413,13 @@ following are currently supported status:
 
 produced,consumed And Operation Status
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-- If status is RTE_COMP_OP_STATUS_SUCCESS, 
+- If status is RTE_COMP_OP_STATUS_SUCCESS,
 	consumed = amount of data read from input buffer, and
 	produced = amount of data written in destination buffer
 - If status is RTE_COMP_OP_STATUS_FAILURE,
 	consumed = produced = 0 or undefined
-- If status is RTE_COMP_OP_STATUS_OUT_OF_SPACE_TERMINATED, 
-	consumed = 0 and 
+- If status is RTE_COMP_OP_STATUS_OUT_OF_SPACE_TERMINATED,
+	consumed = 0 and
 	produced = amount of data successfully produced until
 	out of space condition hit.	Application can consume output data, if required.
 - If status is RTE_COMP_OP_STATUS_OUT_OF_SPACE_RECOVERABLE,
@@ -450,31 +450,31 @@ Chaining currently not supported on compression API.
 			/**< decompress xform */
 		};
 	};
-	
+
 Compression API Stateless operation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 An op is processed stateless if it has
 - op_type set to RTE_COMP_OP_STATELESS
-- flush value set to RTE_FLUSH_FULL or RTE_FLUSH_FINAL 
+- flush value set to RTE_FLUSH_FULL or RTE_FLUSH_FINAL
 (required only on compression side),
 - All-of the required input in source buffer
- 
-When all of the above conditions are met, PMD initiates stateless processing 
-and releases acquired resources after processing of current operation is 
+
+When all of the above conditions are met, PMD initiates stateless processing
+and releases acquired resources after processing of current operation is
 complete. Application can enqueue multiple stateless ops in a single burst
 and must attach priv_xform handle to such ops.
- 
+
 priv_xform in Stateless operation
 +++++++++++++++++++++++++++++++++
 
 priv_xform is PMD internally managed private data that it maintain to do stateless processing.
 priv_xforms are intialized with xfrom by an application via making call to ``rte_comp_priv_xform_create``,
 at an output PMD returns an opaque priv_xform reference with flag set to SHAREABLE or
-NON_SHAREABLE. If PMD support SHAREABLE priv_xform, then application can attach same priv_xform with 
+NON_SHAREABLE. If PMD support SHAREABLE priv_xform, then application can attach same priv_xform with
 many stateless ops at-a-time. If not, then application need to create as many priv_xforms as many are
 expected in flight.
 
-Application should call ``rte_compressdev_private_xform_create()`` and attach to stateless op before 
+Application should call ``rte_compressdev_private_xform_create()`` and attach to stateless op before
 engueing them for processing and free via ``rte_compressdev_private_xform_free()`` during termmination.
 
 .. code-block:: c
@@ -482,15 +482,15 @@ engueing them for processing and free via ``rte_compressdev_private_xform_free()
    int __rte_experimental  rte_compressdev_private_xform_create(uint8_t dev_id,
                                         const struct rte_comp_xform *xform,
                                         void **private_xform)
-                   
+
    int __rte_experimental  rte_compressdev_private_xform_free(uint8_t dev_id, void *private_xform)
 
 TBD sample code to setup ops for stateless processing
 
-Stateless and OUT_OF_SPACE 
+Stateless and OUT_OF_SPACE
 +++++++++++++++++++++++++++++++++
-OUT_OF_SPACE is a condition when output buffer runs out of space and where PMD 
-still has more data to produce. If PMD run into such condition, then it's an 
+OUT_OF_SPACE is a condition when output buffer runs out of space and where PMD
+still has more data to produce. If PMD run into such condition, then it's an
 error condition if PMD returns RTE_COMP_OP_OUT_OF_SPACE_TERMINATED.
 In such case, PMD resets itself and can set consumed=0 and produced=amount of output
 it could produce before hitting out_of_space. Application would need to
@@ -500,15 +500,15 @@ to be completed.
 Compression API Stateful operation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Compression API provide RTE_COMP_FF_STATEFUL_COMPRESSION and
-RTE_COMP_FF_STATEFUL_DECOMPRESSION feature flag for PMD to reflect 
-its support for Stateful operations. 
+RTE_COMP_FF_STATEFUL_DECOMPRESSION feature flag for PMD to reflect
+its support for Stateful operations.
 
-A Stateful operation in DPDK compression means application invokes enqueue 
-burst() multiple times to process related chunk of data because 
+A Stateful operation in DPDK compression means application invokes enqueue
+burst() multiple times to process related chunk of data because
 application broke data into several ops.
 
 In such case
-- ops are setup with op_type RTE_COMP_OP_STATEFUL, 
+- ops are setup with op_type RTE_COMP_OP_STATEFUL,
 - all ops except last set to flush value = RTE_COMP_NO/SYNC_FLUSH
 and last set to flush value RTE_COMP_FULL/FINAL_FLUSH.
 
@@ -517,10 +517,10 @@ stateful processing and releases acquired resources after processing
 operation with flush value = RTE_COMP_FLUSH_FULL/FINAL is complete.
 Unlike stateless, application can enqueue only one stateful op from
 a particular stream in a single burst and must attach stream handle
-to each such op. 
+to each such op.
 
 Stream in Stateful operation
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 `stream`in DPDK compression is a logical entity which identify related set of ops, say, a one large
 file broken into multiple chunks then file is represented by a stream and each chunk of that file
 represented by compression op `rte_comp_op`. Whenever application want a stateful processing of such
@@ -530,31 +530,32 @@ it must attach to all of the ops carrying data of that stream.Since in stateful 
 op need previous op data for compression/decompression, thus PMD allocates and setup resources, such as,
 history, states etc with in a stream which it maintained during processing of such multiple related ops.
 
-Unlike priv_xforms, stream is always a NON_SHAREABLE entity. One stream handle must be attached to only 
+Unlike priv_xforms, stream is always a NON_SHAREABLE entity. One stream handle must be attached to only
 one set of related ops and cannot be reused until all of them are processed with status Success or failure.
 
 ..image: stream and ops TBD
 
-Application should call ``rte_comp_stream_create()`` and attach to op before 
+Application should call ``rte_comp_stream_create()`` and attach to op before
 enqueing them for processing and free via ``rte_comp_stream_free()`` during
 termination. All ops that are to be processed statefully should carry *same* stream.
 
 .. code-block:: c
-int __rte_experimental  rte_compressdev_stream_create(uint8_t dev_id,
-		                                      const struct rte_comp_xform *xform,
-                                                      void **stream)
-		
-int __rte_experimental rte_compressdev_stream_free(uint8_t dev_id, void *stream)
+
+   int __rte_experimental  rte_compressdev_stream_create(uint8_t dev_id,
+	                                      const struct rte_comp_xform *xform,
+                                              void **stream)
+
+   int __rte_experimental  rte_compressdev_stream_free(uint8_t dev_id, void *stream)
 
 ..sample sample code of stateful TBD
 
 Stateful and OUT_OF_SPACE
-^^^^^^^^^^^^^^^^^^^^^^^^^^
-If PMD support stateful operation then on OUT_OF_SPACE situation, it is not an 
-error condition for PMD. In such case, PMD return with status 
-RTE_COMP_OP_STATUS_OUT_OF_SPACE_RECOVERABLE with consumed = number of input bytes read and 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+If PMD support stateful operation then on OUT_OF_SPACE situation, it is not an
+error condition for PMD. In such case, PMD return with status
+RTE_COMP_OP_STATUS_OUT_OF_SPACE_RECOVERABLE with consumed = number of input bytes read and
 produced = length of complete output buffer.
-Application should enqueue next op with source starting at consumed+1 and an output 
+Application should enqueue next op with source starting at consumed+1 and an output
 buffer with available space.
 
 Burst in compression API
@@ -575,22 +576,21 @@ A burst in DPDK compression can be a combination of stateless and stateful opera
 that for stateful ops only one op at-a-time should be enqueued from a particular stream i.e. no-two ops
 should belong to same stream in a single burst i.e. a burst can look like:
 
++--------------+-------------+--------------+-----------------+--------------+--------------+
+|enqueue_burst |op1.no_flush | op2.no_flush | op3.flush_final | op4.no_flush | op5.no_flush |
++--------------+-------------+--------------+-----------------+---------------+-------------+
 
------------------------------------------------------------------------------------------------
-enquue_burst (|op1.no_flush | op2.no_flush | op3.flush_final | op4.no_flush | op5.no_flush |)
-----------------------------------------------------------------------------------------------
-
-Where, op1 .. op5 all belong to different independent data units and can be of type : stateless or stateful. 
-Every op with type set to RTE_COMP_OP_TYPE_STATELESS must be attached to priv_xform and 
+Where, op1 .. op5 all belong to different independent data units and can be of type : stateless or stateful.
+Every op with type set to RTE_COMP_OP_TYPE_STATELESS must be attached to priv_xform and
 Every op with type set to RTE_COMP_OP_TYPE_STATEFUL *must* be attached to stream.
 
-Since each operation in a burst is independent and thus can complete 
-out-of-order,  applications which need ordering, should setup per-op user data 
-area with reordering information so that it can determine enqueue order at 
+Since each operation in a burst is independent and thus can complete
+out-of-order,  applications which need ordering, should setup per-op user data
+area with reordering information so that it can determine enqueue order at
 deque.
 
-Also if multiple threads calls enqueue_burst() on same queue pair then it’s 
-application onus to use proper locking mechanism to ensure exclusive enqueuing 
+Also if multiple threads calls enqueue_burst() on same queue pair then it’s
+application onus to use proper locking mechanism to ensure exclusive enqueuing
 of operations.
 
 Enqueue / Dequeue Burst APIs

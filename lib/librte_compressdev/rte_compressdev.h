@@ -140,7 +140,11 @@ rte_compressdev_capability_get(uint8_t dev_id,
 /**< Adler-32/CRC32 Checksum is supported */
 #define RTE_COMP_FF_MULTI_PKT_CHECKSUM		(1ULL << 6)
 /**< Generation of checksum across multiple stateless packets is supported */
-#define RTE_COMP_FF_NONCOMPRESSED_BLOCKS	(1ULL << 7)
+#define RTE_COMP_FF_SHA1_HASH			(1ULL << 7)
+/**< SHA1 Hash is supported */
+#define RTE_COMP_FF_SHA2_SHA256_HASH		(1ULL << 8)
+/**< SHA256 Hash of SHA2 family is supported */
+#define RTE_COMP_FF_NONCOMPRESSED_BLOCKS	(1ULL << 9)
 /**< Creation of non-compressed blocks using RTE_COMP_LEVEL_NONE is supported */
 
 /**

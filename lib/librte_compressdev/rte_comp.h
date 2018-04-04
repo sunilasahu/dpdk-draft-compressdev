@@ -64,7 +64,7 @@ enum rte_comp_hash_algorithm {
 	RTE_COMP_HASH_ALGO_SHA1,
 	/**< SHA1 hash algorithm */
 	RTE_COMP_HASH_ALGO_SHA2_256,
-	/**< SHA256 with hash algorithm with 256 bit digest */
+	/**< SHA256 hash algorithm of SHA2 family*/
 	RTE_COMP_HASH_ALGO_LIST_END
 };
 
@@ -309,11 +309,9 @@ struct rte_comp_op {
 		 * flush flag = RTE_COMP_FLUSH_FULL/FLUSH_FINAL is processed
 		 * successfully.
 		 *
-		 * The caller must allocate at least digest_length of physically
-		 * contiguous memory at this location.
 		 *
-		 * Length of buffer should be large enough to accommodate digest
-		 * produced by specific hash algo.
+		 * Length of buffer should be contiguous and large enough to
+		 * accommodate digest produced by specific hash algo.
 		 */
 		rte_iova_t iova;
 		/**< IO address of the buffer */
