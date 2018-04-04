@@ -137,15 +137,6 @@ enum rte_comp_xform_type {
 	/**< Compression service - decompress */
 };
 
-enum rte_comp_private_xform_mode {
-	RTE_COMP_PRIV_XFORM_SHAREABLE,
-	/**< private_xform can be attached
-	 * to multiple ops inflight in the device simultaneously
-	 */
-	RTE_COMP_PRIV_XFORM_NOT_SHAREABLE
-	/**< private_xform can only be used on one inflight op at a time. */
-};
-
 enum rte_comp_op_type {
 	RTE_COMP_OP_STATELESS,
 	/**< All data to be processed is submitted in the op, no state or
