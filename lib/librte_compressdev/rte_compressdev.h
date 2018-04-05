@@ -148,7 +148,6 @@ rte_comp_get_feature_name(uint64_t flag);
 /**  comp device information */
 struct rte_compressdev_info {
 	const char *driver_name;		/**< Driver name. */
-	uint8_t driver_id;			/**< Driver identifier */
 	uint64_t feature_flags;			/**< Feature flags */
 	const struct rte_compressdev_capabilities *capabilities;
 	/**< Array of devices supported capabilities */
@@ -205,17 +204,6 @@ rte_compressdev_name_get(uint8_t dev_id);
  */
 uint8_t __rte_experimental
 rte_compressdev_count(void);
-
-/**
- * Get number of comp device defined type.
- *
- * @param driver_id
- *   Driver identifier
- * @return
- *   Returns number of comp device.
- */
-uint8_t __rte_experimental
-rte_compressdev_device_count_by_driver(uint8_t driver_id);
 
 /**
  * Get number and identifiers of attached comp devices that
@@ -423,9 +411,6 @@ struct rte_compressdev {
 	/**< Functions exported by PMD */
 	struct rte_device *device;
 	/**< Backing device */
-
-	uint8_t driver_id;
-	/**< comp driver identifier*/
 
 	__extension__
 	uint8_t attached : 1;
@@ -674,28 +659,6 @@ rte_compressdev_private_xform_create(uint8_t dev_id,
  */
 int __rte_experimental
 rte_compressdev_private_xform_free(uint8_t dev_id, void *private_xform);
-
-/**
- * Provide driver identifier.
- *
- * @param name
- *   Compress driver name
- * @return
- *  The driver type identifier or -1 if no driver found
- */
-int __rte_experimental
-rte_compressdev_driver_id_get(const char *name);
-
-/**
- * Provide driver name.
- *
- * @param driver_id
- *   The driver identifier
- * @return
- *  The driver name or null if no driver found
- */
-const char * __rte_experimental
-rte_compressdev_driver_name_get(uint8_t driver_id);
 
 #ifdef __cplusplus
 }

@@ -41,8 +41,6 @@
 #include "rte_compressdev.h"
 #include "rte_compressdev_pmd.h"
 
-static uint8_t nb_drivers;
-
 struct rte_compressdev rte_comp_devices[RTE_COMPRESS_MAX_DEVS];
 
 struct rte_compressdev *rte_compressdevs = &rte_comp_devices[0];
@@ -195,20 +193,6 @@ uint8_t __rte_experimental
 rte_compressdev_count(void)
 {
 	return rte_compressdev_globals->nb_devs;
-}
-
-uint8_t __rte_experimental
-rte_compressdev_device_count_by_driver(uint8_t driver_id)
-{
-	uint8_t i, dev_count = 0;
-
-	for (i = 0; i < rte_compressdev_globals->max_devs; i++)
-		if (rte_compressdev_globals->devs[i].driver_id == driver_id &&
-			rte_compressdev_globals->devs[i].attached ==
-					RTE_COMPRESSDEV_ATTACHED)
-			dev_count++;
-
-	return dev_count;
 }
 
 uint8_t __rte_experimental
@@ -833,30 +817,6 @@ rte_comp_op_pool_create(const char *name,
 	return mp;
 }
 
-TAILQ_HEAD(compressdev_driver_list, compressdev_driver);
-
-static struct compressdev_driver_list compressdev_driver_list =
-	TAILQ_HEAD_INITIALIZER(compressdev_driver_list);
-
-int __rte_experimental
-rte_compressdev_driver_id_get(const char *name)
-{
-	struct compressdev_driver *driver;
-	const char *driver_name;
-
-	if (name == NULL) {
-		COMPRESSDEV_LOG(DEBUG, "name pointer NULL");
-		return -1;
-	}
-
-	TAILQ_FOREACH(driver, &compressdev_driver_list, next) {
-		driver_name = driver->driver->name;
-		if (strncmp(driver_name, name, strlen(driver_name)) == 0)
-			return driver->id;
-	}
-	return -1;
-}
-
 const char * __rte_experimental
 rte_compressdev_name_get(uint8_t dev_id)
 {
@@ -866,29 +826,6 @@ rte_compressdev_name_get(uint8_t dev_id)
 		return NULL;
 
 	return dev->data->name;
-}
-
-const char * __rte_experimental
-rte_compressdev_driver_name_get(uint8_t driver_id)
-{
-	struct compressdev_driver *driver;
-
-	TAILQ_FOREACH(driver, &compressdev_driver_list, next)
-		if (driver->id == driver_id)
-			return driver->driver->name;
-	return NULL;
-}
-
-uint8_t
-rte_compressdev_allocate_driver(struct compressdev_driver *comp_drv,
-		const struct rte_driver *drv)
-{
-	comp_drv->driver = drv;
-	comp_drv->id = nb_drivers;
-
-	TAILQ_INSERT_TAIL(&compressdev_driver_list, comp_drv, next);
-
-	return nb_drivers++;
 }
 
 RTE_INIT(rte_compressdev_log);

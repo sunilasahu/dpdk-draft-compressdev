@@ -406,29 +406,6 @@ int __rte_experimental
 rte_compressdev_pmd_destroy(struct rte_compressdev *dev);
 
 
-/**
- * @internal
- * Allocate compressdev driver.
- *
- * @param comp_drv
- *   Compressdev driver
- * @param drv
- *   Rte_driver
- * @return
- *  The driver type identifier
- */
-uint8_t __rte_experimental
-rte_compressdev_allocate_driver(struct compressdev_driver *comp_drv,
-		const struct rte_driver *drv);
-
-
-#define RTE_PMD_REGISTER_COMPRESSDEV_DRIVER(comp_drv, drv, driver_id)\
-RTE_INIT(init_ ##driver_id);\
-static void init_ ##driver_id(void)\
-{\
-	driver_id = rte_compressdev_allocate_driver(&comp_drv, &(drv).driver);\
-}
-
 #ifdef __cplusplus
 }
 #endif
