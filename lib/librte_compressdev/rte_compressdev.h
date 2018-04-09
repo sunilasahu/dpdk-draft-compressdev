@@ -146,7 +146,9 @@ rte_compressdev_capability_get(uint8_t dev_id,
 #define RTE_COMP_FF_SHAREABLE_PRIV_XFORM	(1ULL << 10)
 /**< Private xforms created by the PMD can be shared
  * across multiple stateless operations. If not set, then app needs
- * to create as many priv_xforms as many expected in flight. */
+ * to create as many priv_xforms as it expects to have stateless
+ * operations in-flight.
+ */
 
 /**
  * Get the name of a compress device feature flag.
@@ -309,7 +311,7 @@ rte_compressdev_configure(uint8_t dev_id,
  * Start a device.
  *
  * The device start step is called after configuring the device and setting up
- * its queue_pairs.
+ * its queue pairs.
  * On success, data-path functions exported by the API (enqueue/dequeue, etc)
  * can be invoked.
  *
