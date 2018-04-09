@@ -135,6 +135,12 @@ rte_comp_get_feature_name(uint64_t flag)
 		return "CRC32_ADLER32_CHECKSUM";
 	case RTE_COMP_FF_NONCOMPRESSED_BLOCKS:
 		return "NONCOMPRESSED_BLOCKS";
+	case RTE_COMP_FF_SHA1_HASH:
+		return "SHA1_HASH";
+	case RTE_COMP_FF_SHA2_SHA256_HASH:
+		return "SHA2_SHA256_HASH";
+	case RTE_COMP_FF_SHAREABLE_PRIV_XFORM:
+		return "SHAREABLE_PRIV_XFORM";
 	default:
 		return NULL;
 	}
