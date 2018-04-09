@@ -450,8 +450,6 @@ struct rte_compressdev {
 	/**< Pointer to device data */
 	struct rte_compressdev_ops *dev_ops;
 	/**< Functions exported by PMD */
-	uint64_t feature_flags;
-	/**< Supported features */
 	struct rte_device *device;
 	/**< Backing device */
 
