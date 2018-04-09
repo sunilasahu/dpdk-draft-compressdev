@@ -33,35 +33,6 @@ extern int compressdev_logtype;
 
 #define RTE_COMPRESSDEV_NAME_MAX_LEN	(64)
 /**< Max length of name of comp PMD */
-/**
- * A macro that points to an offset from the start
- * of the comp operation structure (rte_comp_op)
- *
- * The returned pointer is cast to type t.
- *
- * @param c
- *   The comp operation
- * @param o
- *   The offset from the start of the comp operation
- * @param t
- *   The type to cast the result into
- */
-#define rte_comp_op_ctod_offset(c, t, o)	\
-	((t)((char *)(c) + (o)))
-
-/**
- * A macro that returns the physical address that points
- * to an offset from the start of the comp operation
- * (rte_comp_op).
- *
- * @param c
- *   The comp operation
- * @param o
- *   The offset from the start of the comp operation
- *   to calculate address from
- */
-#define rte_comp_op_ctophys_offset(c, o)	\
-	(rte_iova_t)((c)->iova_addr + (o))
 
 /**
  * Parameter log base 2 range description.

@@ -56,21 +56,6 @@ static struct rte_compressdev_global compressdev_globals = {
 
 struct rte_compressdev_global *rte_compressdev_globals = &compressdev_globals;
 
-/**
- * The compression algorithm strings identifiers.
- * It could be used in application command line.
- */
-const char *
-rte_comp_algorithm_strings[] = {
-	[RTE_COMP_ALGO_DEFLATE]		= "deflate",
-	[RTE_COMP_ALGO_LZS]		= "lzs"
-};
-
-
-#define param_range_check(x, y) \
-	(((x < y.min) || (x > y.max)) || \
-	(y.increment != 0 && (x % y.increment) != 0))
-
 const struct rte_compressdev_capabilities * __rte_experimental
 rte_compressdev_capability_get(uint8_t dev_id,
 			enum rte_comp_algorithm algo)
