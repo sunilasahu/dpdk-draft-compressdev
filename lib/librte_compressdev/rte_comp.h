@@ -252,8 +252,8 @@ struct rte_comp_op {
 
 	struct rte_mempool *mempool;
 	/**< Pool from which operation is allocated */
-	rte_iova_t phys_addr;
-	/**< Physical address of this operation */
+	rte_iova_t iova_addr;
+	/**< IOVA address of this operation */
 	struct rte_mbuf *m_src;
 	/**< source mbuf
 	 * The total size of the input buffer(s) can be retrieved using
@@ -350,11 +350,11 @@ static inline void
 __rte_comp_op_reset(struct rte_comp_op *op)
 {
 	struct rte_mempool *tmp_mp = op->mempool;
-	phys_addr_t tmp_phys_addr = op->phys_addr;
+	rte_iova_t tmp_iova_addr = op->iova_addr;
 
 	memset(op, 0, sizeof(struct rte_comp_op));
 	op->status = RTE_COMP_OP_STATUS_NOT_PROCESSED;
-	op->phys_addr = tmp_phys_addr;
+	op->iova_addr = tmp_iova_addr;
 	op->mempool = tmp_mp;
 }
 

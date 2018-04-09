@@ -61,7 +61,7 @@ extern int compressdev_logtype;
  *   to calculate address from
  */
 #define rte_comp_op_ctophys_offset(c, o)	\
-	(rte_iova_t)((c)->phys_addr + (o))
+	(rte_iova_t)((c)->iova_addr + (o))
 
 /**
  * Parameter log base 2 range description.

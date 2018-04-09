@@ -782,7 +782,7 @@ rte_comp_op_init(struct rte_mempool *mempool,
 	memset(_op_data, 0, mempool->elt_size);
 
 	op->status = RTE_COMP_OP_STATUS_NOT_PROCESSED;
-	op->phys_addr = rte_mem_virt2iova(_op_data);
+	op->iova_addr = rte_mem_virt2iova(_op_data);
 	op->mempool = mempool;
 }
 
