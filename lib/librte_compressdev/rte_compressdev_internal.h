@@ -8,6 +8,7 @@
 /* rte_compressdev_internal.h
  * This file holds Compressdev private data structures.
  */
+#include <rte_log.h>
 
 #include "rte_comp.h"
 

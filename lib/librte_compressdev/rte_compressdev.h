@@ -19,10 +19,6 @@ extern "C" {
 
 #include <rte_common.h>
 
-#include "rte_kvargs.h"
-#include "rte_comp.h"
-#include "rte_dev.h"
-
 /**
  * Parameter log base 2 range description.
  * Final value will be 2^value.

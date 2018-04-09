@@ -20,10 +20,6 @@ extern "C" {
 #include <string.h>
 
 #include <rte_dev.h>
-#include <rte_malloc.h>
-#include <rte_mbuf.h>
-#include <rte_mempool.h>
-#include <rte_log.h>
 #include <rte_common.h>
 
 #include "rte_compressdev.h"

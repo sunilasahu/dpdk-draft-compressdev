@@ -16,8 +16,8 @@
 extern "C" {
 #endif
 
-#include <string.h>
 #include <rte_mempool.h>
+#include <rte_mbuf.h>
 
 /** Status of comp operation */
 enum rte_comp_op_status {
