@@ -32,7 +32,6 @@ extern int compressdev_logtype;
 #define RTE_COMPRESSDEV_ATTACHED  (1)
 
 #define RTE_COMPRESSDEV_NAME_MAX_LEN	(64)
-
 /**< Max length of name of comp PMD */
 /**
  * A macro that points to an offset from the start
@@ -89,7 +88,6 @@ struct rte_compressdev_capabilities {
 	/**< Window size range in base two log byte values */
 };
 
-
 /** Macro used at end of comp PMD list */
 #define RTE_COMP_END_OF_CAPABILITIES_LIST() \
 	{ RTE_COMP_ALGO_UNSPECIFIED }
@@ -105,7 +103,6 @@ rte_compressdev_capability_get(uint8_t dev_id,
  *
  * Keep these flags synchronised with rte_compressdev_get_feature_name()
  */
-
 #define	RTE_COMPDEV_FF_HW_ACCELERATED		(1ULL << 0)
 /**< Operations are off-loaded to an external hardware accelerator */
 #define	RTE_COMPDEV_FF_CPU_SSE			(1ULL << 1)
@@ -187,7 +184,6 @@ struct rte_compressdev_info {
 	 * (If 0, there is no limit in maximum number of queue pairs)
 	 */
 };
-
 
 /** comp device statistics */
 struct rte_compressdev_stats {
@@ -464,7 +460,6 @@ struct rte_compressdev {
 	/**< Flag indicating the device is attached */
 } __rte_cache_aligned;
 
-
 /**
  *
  * The data part, with no function pointers, associated with each device.
@@ -494,6 +489,7 @@ struct rte_compressdev_data {
 } __rte_cache_aligned;
 
 struct rte_compressdev *rte_compressdevs;
+
 /**
  *
  * Dequeue a burst of processed compression operations from a queue on the comp
@@ -599,7 +595,6 @@ rte_compressdev_enqueue_burst(uint8_t dev_id, uint16_t qp_id,
 	return (*dev->enqueue_burst)(
 			dev->data->queue_pairs[qp_id], ops, nb_ops);
 }
-
 
 /**
  * This should alloc a stream from the device's mempool and initialise it.

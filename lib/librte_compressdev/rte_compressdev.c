@@ -245,7 +245,6 @@ rte_compressdev_devices_get(const char *driver_name, uint8_t *devices,
 	return count;
 }
 
-
 int __rte_experimental
 rte_compressdev_socket_id(uint8_t dev_id)
 {
@@ -320,7 +319,6 @@ rte_compressdev_pmd_allocate(const char *name, int socket_id)
 		COMPRESSDEV_LOG(ERR, "Reached maximum number of comp devices");
 		return NULL;
 	}
-
 	compressdev = rte_compressdev_pmd_get_dev(dev_id);
 
 	if (compressdev->data == NULL) {
@@ -771,7 +769,6 @@ rte_compressdev_stream_free(uint8_t dev_id, void *stream)
 
 	return 0;
 }
-
 
 /** Initialise rte_comp_op mempool element */
 static void

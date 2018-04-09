@@ -1,7 +1,7 @@
 EXPERIMENTAL {
         global:
 
-        rte_compressdevs;
+	rte_compressdevs;
 	rte_compressdev_allocate_driver;
 	rte_compressdev_callback_register;
 	rte_compressdev_callback_unregister;

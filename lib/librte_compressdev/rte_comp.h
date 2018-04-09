@@ -19,7 +19,6 @@ extern "C" {
 #include <string.h>
 #include <rte_mempool.h>
 
-
 /** Status of comp operation */
 enum rte_comp_op_status {
 	RTE_COMP_OP_STATUS_SUCCESS = 0,
@@ -35,7 +34,6 @@ enum rte_comp_op_status {
 	RTE_COMP_OP_STATUS_OUT_OF_SPACE,
 	/**< Output buffer ran out of space before operation completed */
 };
-
 
 /** Compression Algorithms */
 enum rte_comp_algorithm {
@@ -224,7 +222,6 @@ struct rte_comp_xform {
 	};
 };
 
-
 /**
  * Compression Operation.
  *
@@ -235,7 +232,6 @@ struct rte_comp_xform {
  * rte_compressdev_enqueue_burst() / rte_compressdev_dequeue_burst() APIs
  */
 struct rte_comp_op {
-
 	enum rte_comp_op_type op_type;
 	union {
 		void *private_xform;

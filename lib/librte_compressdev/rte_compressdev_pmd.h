@@ -109,7 +109,7 @@ rte_compressdev_pmd_is_valid_dev(uint8_t dev_id);
  */
 
 /**
- *	Function used to configure device.
+ * Function used to configure device.
  *
  * @param dev
  *   Compress device
@@ -222,7 +222,6 @@ typedef int (*compressdev_queue_pair_release_t)(struct rte_compressdev *dev,
  */
 typedef uint32_t (*compressdev_queue_pair_count_t)(struct rte_compressdev *dev);
 
-
 /**
  * Create driver private stream data.
  *
@@ -324,7 +323,6 @@ struct rte_compressdev_ops {
 	compressdev_private_xform_free_t private_xform_free;
 	/**< Free a comp private_xform's data. */
 };
-
 
 /**
  * @internal
