@@ -92,17 +92,6 @@ struct rte_compressdev * __rte_experimental
 rte_compressdev_pmd_get_named_dev(const char *name);
 
 /**
- * Validate if the comp device index is valid attached comp device.
- *
- * @param dev_id
- *   Compress device identifier
- * @return
- *   - If the device index is valid (1) or not (0).
- */
-unsigned int __rte_experimental
-rte_compressdev_pmd_is_valid_dev(uint8_t dev_id);
-
-/**
  * Definitions of all functions exported by a driver through the
  * the generic structure of type *comp_dev_ops* supplied in the
  * *rte_compressdev* structure associated with a device.

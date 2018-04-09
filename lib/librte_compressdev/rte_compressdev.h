@@ -263,6 +263,7 @@ rte_compressdev_device_count_by_driver(uint8_t driver_id);
 uint8_t __rte_experimental
 rte_compressdev_devices_get(const char *driver_name, uint8_t *devices,
 		uint8_t nb_devices);
+
 /*
  * Return the NUMA socket to which a device is connected.
  *

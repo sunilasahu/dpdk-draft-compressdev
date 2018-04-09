@@ -172,8 +172,8 @@ rte_compressdev_pmd_get_named_dev(const char *name)
 	return NULL;
 }
 
-unsigned int __rte_experimental
-rte_compressdev_pmd_is_valid_dev(uint8_t dev_id)
+static unsigned int
+rte_compressdev_is_valid_dev(uint8_t dev_id)
 {
 	struct rte_compressdev *dev = NULL;
 
@@ -256,7 +256,7 @@ rte_compressdev_socket_id(uint8_t dev_id)
 {
 	struct rte_compressdev *dev;
 
-	if (!rte_compressdev_pmd_is_valid_dev(dev_id))
+	if (!rte_compressdev_is_valid_dev(dev_id))
 		return -1;
 
 	dev = rte_compressdev_pmd_get_dev(dev_id);
@@ -469,7 +469,7 @@ rte_compressdev_configure(uint8_t dev_id, struct rte_compressdev_config *config)
 	struct rte_compressdev *dev;
 	int diag;
 
-	if (!rte_compressdev_pmd_is_valid_dev(dev_id)) {
+	if (!rte_compressdev_is_valid_dev(dev_id)) {
 		COMPRESSDEV_LOG(ERR, "Invalid dev_id=%" PRIu8, dev_id);
 		return -EINVAL;
 	}
@@ -506,7 +506,7 @@ rte_compressdev_start(uint8_t dev_id)
 
 	COMPRESSDEV_LOG(DEBUG, "Start dev_id=%" PRIu8, dev_id);
 
-	if (!rte_compressdev_pmd_is_valid_dev(dev_id)) {
+	if (!rte_compressdev_is_valid_dev(dev_id)) {
 		COMPRESSDEV_LOG(ERR, "Invalid dev_id=%" PRIu8, dev_id);
 		return -EINVAL;
 	}
@@ -535,7 +535,7 @@ rte_compressdev_stop(uint8_t dev_id)
 {
 	struct rte_compressdev *dev;
 
-	if (!rte_compressdev_pmd_is_valid_dev(dev_id)) {
+	if (!rte_compressdev_is_valid_dev(dev_id)) {
 		COMPRESSDEV_LOG(ERR, "Invalid dev_id=%" PRIu8, dev_id);
 		return;
 	}
@@ -560,7 +560,7 @@ rte_compressdev_close(uint8_t dev_id)
 	struct rte_compressdev *dev;
 	int retval;
 
-	if (!rte_compressdev_pmd_is_valid_dev(dev_id)) {
+	if (!rte_compressdev_is_valid_dev(dev_id)) {
 		COMPRESSDEV_LOG(ERR, "Invalid dev_id=%" PRIu8, dev_id);
 		return -1;
 	}
@@ -589,7 +589,7 @@ rte_compressdev_queue_pair_setup(uint8_t dev_id, uint16_t queue_pair_id,
 {
 	struct rte_compressdev *dev;
 
-	if (!rte_compressdev_pmd_is_valid_dev(dev_id)) {
+	if (!rte_compressdev_is_valid_dev(dev_id)) {
 		COMPRESSDEV_LOG(ERR, "Invalid dev_id=%" PRIu8, dev_id);
 		return -EINVAL;
 	}
@@ -624,7 +624,7 @@ rte_compressdev_stats_get(uint8_t dev_id, struct rte_compressdev_stats *stats)
 {
 	struct rte_compressdev *dev;
 
-	if (!rte_compressdev_pmd_is_valid_dev(dev_id)) {
+	if (!rte_compressdev_is_valid_dev(dev_id)) {
 		COMPRESSDEV_LOG(ERR, "Invalid dev_id=%d", dev_id);
 		return -ENODEV;
 	}
@@ -647,7 +647,7 @@ rte_compressdev_stats_reset(uint8_t dev_id)
 {
 	struct rte_compressdev *dev;
 
-	if (!rte_compressdev_pmd_is_valid_dev(dev_id)) {
+	if (!rte_compressdev_is_valid_dev(dev_id)) {
 		COMPRESSDEV_LOG(ERR, "Invalid dev_id=%" PRIu8, dev_id);
 		return;
 	}
