@@ -181,7 +181,7 @@ struct rte_compressdev_info {
 	uint64_t feature_flags;			/**< Feature flags */
 	const struct rte_compressdev_capabilities *capabilities;
 	/**< Array of devices supported capabilities */
-	unsigned int max_nb_queue_pairs;
+	uint16_t max_nb_queue_pairs;
 	/**< Maximum number of queues pairs supported by device.
 	 * (If 0, there is no limit in maximum number of queue pairs)
 	 */
