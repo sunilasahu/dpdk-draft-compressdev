@@ -26,7 +26,6 @@ extern "C" {
 #include <rte_log.h>
 #include <rte_common.h>
 
-#include "rte_comp.h"
 #include "rte_compressdev.h"
 
 #define RTE_COMPRESSDEV_PMD_NAME_ARG			("name")
