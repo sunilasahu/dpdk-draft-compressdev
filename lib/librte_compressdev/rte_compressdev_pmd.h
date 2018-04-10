@@ -42,7 +42,6 @@ static const char * const compressdev_pmd_valid_params[] = {
  */
 struct rte_compressdev_pmd_init_params {
 	char name[RTE_COMPRESSDEV_NAME_MAX_LEN];
-	size_t private_data_size;
 	int socket_id;
 };
 
@@ -388,6 +387,7 @@ rte_compressdev_pmd_parse_input_args(
 struct rte_compressdev * __rte_experimental
 rte_compressdev_pmd_create(const char *name,
 		struct rte_device *device,
+		size_t private_data_size,
 		struct rte_compressdev_pmd_init_params *params);
 
 /**

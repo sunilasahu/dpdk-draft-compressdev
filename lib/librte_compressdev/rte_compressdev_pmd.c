@@ -84,6 +84,7 @@ free_kvlist:
 struct rte_compressdev * __rte_experimental
 rte_compressdev_pmd_create(const char *name,
 		struct rte_device *device,
+		size_t private_data_size,
 		struct rte_compressdev_pmd_init_params *params)
 {
 	struct rte_compressdev *compressdev;
@@ -114,7 +115,7 @@ rte_compressdev_pmd_create(const char *name,
 	if (rte_eal_process_type() == RTE_PROC_PRIMARY) {
 		compressdev->data->dev_private =
 				rte_zmalloc_socket("compressdev device private",
-						params->private_data_size,
+						private_data_size,
 						RTE_CACHE_LINE_SIZE,
 						params->socket_id);
 
