@@ -79,7 +79,10 @@ rte_compressdev_capability_get(uint8_t dev_id,
 	struct rte_compressdev_info dev_info;
 	int i = 0;
 
-	memset(&dev_info, 0, sizeof(struct rte_compressdev_info));
+	if (dev_id >= compressdev_globals.nb_devs) {
+		COMPRESSDEV_LOG(ERR, "Invalid dev_id=%d", dev_id);
+		return NULL;
+	}
 	rte_compressdev_info_get(dev_id, &dev_info);
 
 	while ((capability = &dev_info.capabilities[i++])->algo !=
@@ -597,6 +600,12 @@ rte_compressdev_queue_pair_setup(uint8_t dev_id, uint16_t queue_pair_id,
 		COMPRESSDEV_LOG(ERR,
 		    "device %d must be stopped to allow configuration", dev_id);
 		return -EBUSY;
+	}
+
+	if (max_inflight_ops == 0) {
+		COMPRESSDEV_LOG(ERR,
+			"Invalid maximum number of inflight operations");
+		return -EINVAL;
 	}
 
 	RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->queue_pair_setup, -ENOTSUP);

@@ -269,7 +269,7 @@ typedef int (*compressdev_stream_free_t)(struct rte_compressdev *dev,
  * @param private_xform
  *   ptr where handle of pmd's private_xform data should be stored
  * @return
- *  - if successful returns RTE_COMP_PRIV_XFORM_SHAREABLE/NOT_SHAREABLE
+ *  - if successful returns 0
  *    and valid private_xform handle
  *  - <0 in error cases
  *  - Returns -EINVAL if input parameters are invalid.

@@ -140,8 +140,16 @@ rte_compressdev_capability_get(uint8_t dev_id,
 /**< Adler-32/CRC32 Checksum is supported */
 #define RTE_COMP_FF_MULTI_PKT_CHECKSUM		(1ULL << 6)
 /**< Generation of checksum across multiple stateless packets is supported */
-#define RTE_COMP_FF_NONCOMPRESSED_BLOCKS	(1ULL << 7)
+#define RTE_COMP_FF_SHA1_HASH			(1ULL << 7)
+/**< SHA1 Hash is supported */
+#define RTE_COMP_FF_SHA2_SHA256_HASH		(1ULL << 8)
+/**< SHA256 Hash of SHA2 family is supported */
+#define RTE_COMP_FF_NONCOMPRESSED_BLOCKS	(1ULL << 9)
 /**< Creation of non-compressed blocks using RTE_COMP_LEVEL_NONE is supported */
+#define RTE_COMP_FF_SHAREABLE_PRIV_XFORM	(1ULL << 10)
+/**< Private xforms created by the PMD can be shared
+ * across multiple stateless operations. If not set, then app needs
+ * to create as many priv_xforms as many expected in flight. */
 
 /**
  * Get the name of a compress device feature flag.
@@ -657,7 +665,7 @@ rte_compressdev_stream_free(uint8_t dev_id, void *stream);
  *   Pointer to where PMD's private_xform handle should be stored
  *
  * @return
- *  - if successful returns RTE_COMP_PRIV_XFORM_SHAREABLE/NOT_SHAREABLE
+ *  - if successful returns 0
  *    and valid private_xform handle
  *  - <0 in error cases
  *  - Returns -EINVAL if input parameters are invalid.
