@@ -5,6 +5,7 @@
 #include <rte_malloc.h>
 #include <rte_kvargs.h>
 
+#include "rte_compressdev_internal.h"
 #include "rte_compressdev_pmd.h"
 
 int compressdev_logtype;

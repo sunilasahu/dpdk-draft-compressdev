@@ -27,6 +27,7 @@ extern "C" {
 #include <rte_common.h>
 
 #include "rte_compressdev.h"
+#include "rte_compressdev_internal.h"
 
 #define RTE_COMPRESSDEV_PMD_NAME_ARG			("name")
 #define RTE_COMPRESSDEV_PMD_SOCKET_ID_ARG		("socket_id")

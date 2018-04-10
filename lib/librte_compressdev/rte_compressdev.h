@@ -31,9 +31,6 @@ extern int compressdev_logtype;
 #define RTE_COMPRESSDEV_DETACHED  (0)
 #define RTE_COMPRESSDEV_ATTACHED  (1)
 
-#define RTE_COMPRESSDEV_NAME_MAX_LEN	(64)
-/**< Max length of name of comp PMD */
-
 /**
  * Parameter log base 2 range description.
  * Final value will be 2^value.
@@ -387,65 +384,6 @@ rte_compressdev_stats_reset(uint8_t dev_id);
  */
 void __rte_experimental
 rte_compressdev_info_get(uint8_t dev_id, struct rte_compressdev_info *dev_info);
-
-
-typedef uint16_t (*compress_dequeue_pkt_burst_t)(void *qp,
-		struct rte_comp_op **ops, uint16_t nb_ops);
-/**< Dequeue processed packets from queue pair of a device. */
-
-typedef uint16_t (*compress_enqueue_pkt_burst_t)(void *qp,
-		struct rte_comp_op **ops, uint16_t nb_ops);
-/**< Enqueue packets for processing on queue pair of a device. */
-
-
-/** The data structure associated with each comp device. */
-struct rte_compressdev {
-	compress_dequeue_pkt_burst_t dequeue_burst;
-	/**< Pointer to PMD receive function */
-	compress_enqueue_pkt_burst_t enqueue_burst;
-	/**< Pointer to PMD transmit function */
-
-	struct rte_compressdev_data *data;
-	/**< Pointer to device data */
-	struct rte_compressdev_ops *dev_ops;
-	/**< Functions exported by PMD */
-	struct rte_device *device;
-	/**< Backing device */
-
-	__extension__
-	uint8_t attached : 1;
-	/**< Flag indicating the device is attached */
-} __rte_cache_aligned;
-
-/**
- *
- * The data part, with no function pointers, associated with each device.
- *
- * This structure is safe to place in shared memory to be common among
- * different processes in a multi-process configuration.
- */
-struct rte_compressdev_data {
-	uint8_t dev_id;
-	/**< Compress device identifier */
-	uint8_t socket_id;
-	/**< Socket identifier where memory is allocated */
-	char name[RTE_COMPRESSDEV_NAME_MAX_LEN];
-	/**< Unique identifier name */
-
-	__extension__
-	uint8_t dev_started : 1;
-	/**< Device state: STARTED(1)/STOPPED(0) */
-
-	void **queue_pairs;
-	/**< Array of pointers to queue pairs. */
-	uint16_t nb_queue_pairs;
-	/**< Number of device queue pairs */
-
-	void *dev_private;
-	/**< PMD-specific private data */
-} __rte_cache_aligned;
-
-struct rte_compressdev *rte_compressdevs;
 
 /**
  *

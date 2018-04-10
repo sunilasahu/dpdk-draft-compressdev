@@ -1,7 +1,6 @@
 EXPERIMENTAL {
         global:
 
-	rte_compressdevs;
 	rte_compressdev_callback_register;
 	rte_compressdev_callback_unregister;
 	rte_compressdev_capability_get;
