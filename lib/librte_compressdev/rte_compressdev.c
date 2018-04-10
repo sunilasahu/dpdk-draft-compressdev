@@ -42,6 +42,9 @@
 #include "rte_compressdev.h"
 #include "rte_compressdev_pmd.h"
 
+#define RTE_COMPRESSDEV_DETACHED  (0)
+#define RTE_COMPRESSDEV_ATTACHED  (1)
+
 struct rte_compressdev rte_comp_devices[RTE_COMPRESS_MAX_DEVS];
 
 struct rte_compressdev *rte_compressdevs = &rte_comp_devices[0];

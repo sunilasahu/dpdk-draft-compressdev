@@ -28,9 +28,6 @@ extern int compressdev_logtype;
 	rte_log(RTE_LOG_ ## level, compressdev_logtype, "%s(): "fmt "\n", \
 			__func__, ##args)
 
-#define RTE_COMPRESSDEV_DETACHED  (0)
-#define RTE_COMPRESSDEV_ATTACHED  (1)
-
 /**
  * Parameter log base 2 range description.
  * Final value will be 2^value.
