@@ -587,6 +587,27 @@ rte_compressdev_queue_pair_setup(uint8_t dev_id, uint16_t queue_pair_id,
 			max_inflight_ops, socket_id);
 }
 
+uint16_t __rte_experimental
+rte_compressdev_dequeue_burst(uint8_t dev_id, uint16_t qp_id,
+		struct rte_comp_op **ops, uint16_t nb_ops)
+{
+	struct rte_compressdev *dev = &rte_compressdevs[dev_id];
+
+	nb_ops = (*dev->dequeue_burst)
+			(dev->data->queue_pairs[qp_id], ops, nb_ops);
+
+	return nb_ops;
+}
+
+uint16_t __rte_experimental
+rte_compressdev_enqueue_burst(uint8_t dev_id, uint16_t qp_id,
+		struct rte_comp_op **ops, uint16_t nb_ops)
+{
+	struct rte_compressdev *dev = &rte_compressdevs[dev_id];
+
+	return (*dev->enqueue_burst)(
+			dev->data->queue_pairs[qp_id], ops, nb_ops);
+}
 
 int __rte_experimental
 rte_compressdev_stats_get(uint8_t dev_id, struct rte_compressdev_stats *stats)

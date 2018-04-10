@@ -501,17 +501,9 @@ struct rte_compressdev *rte_compressdevs;
  *   of pointers to *rte_comp_op* structures effectively supplied to the
  *   *ops* array.
  */
-static inline uint16_t
+uint16_t __rte_experimental
 rte_compressdev_dequeue_burst(uint8_t dev_id, uint16_t qp_id,
-		struct rte_comp_op **ops, uint16_t nb_ops)
-{
-	struct rte_compressdev *dev = &rte_compressdevs[dev_id];
-
-	nb_ops = (*dev->dequeue_burst)
-			(dev->data->queue_pairs[qp_id], ops, nb_ops);
-
-	return nb_ops;
-}
+		struct rte_comp_op **ops, uint16_t nb_ops);
 
 /**
  * Enqueue a burst of operations for processing on a compression device.
@@ -556,15 +548,9 @@ rte_compressdev_dequeue_burst(uint8_t dev_id, uint16_t qp_id,
  *   comp devices queue is full or if invalid parameters are specified in
  *   a *rte_comp_op*.
  */
-static inline uint16_t
+uint16_t __rte_experimental
 rte_compressdev_enqueue_burst(uint8_t dev_id, uint16_t qp_id,
-		struct rte_comp_op **ops, uint16_t nb_ops)
-{
-	struct rte_compressdev *dev = &rte_compressdevs[dev_id];
-
-	return (*dev->enqueue_burst)(
-			dev->data->queue_pairs[qp_id], ops, nb_ops);
-}
+		struct rte_comp_op **ops, uint16_t nb_ops);
 
 /**
  * This should alloc a stream from the device's mempool and initialise it.
