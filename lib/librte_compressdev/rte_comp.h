@@ -345,55 +345,6 @@ struct rte_comp_op {
 	 */
 } __rte_cache_aligned;
 
-
-/**
- * Reset the fields of an operation to their default values.
- *
- * @note The private data associated with the operation is not zeroed.
- *
- * @param op
- *   The operation to be reset
- */
-static inline void
-__rte_comp_op_reset(struct rte_comp_op *op)
-{
-	struct rte_mempool *tmp_mp = op->mempool;
-	rte_iova_t tmp_iova_addr = op->iova_addr;
-
-	memset(op, 0, sizeof(struct rte_comp_op));
-	op->status = RTE_COMP_OP_STATUS_NOT_PROCESSED;
-	op->iova_addr = tmp_iova_addr;
-	op->mempool = tmp_mp;
-}
-
-/**
- * Private data structure belonging to an operation pool.
- */
-struct rte_comp_op_pool_private {
-	uint16_t user_size;
-	/**< Size of private user data with each operation. */
-};
-
-
-/**
- * Returns the size of private user data allocated with each object in
- * the mempool
- *
- * @param mempool
- *   Mempool for operations
- * @return
- *   user data size
- */
-static inline uint16_t
-__rte_comp_op_get_user_data_size(struct rte_mempool *mempool)
-{
-	struct rte_comp_op_pool_private *priv =
-	    (struct rte_comp_op_pool_private *)rte_mempool_get_priv(mempool);
-
-	return priv->user_size;
-}
-
-
 /**
  * Creates an operation pool
  *
@@ -412,30 +363,10 @@ __rte_comp_op_get_user_data_size(struct rte_mempool *mempool)
  *  - On success pointer to mempool
  *  - On failure NULL
  */
-struct rte_mempool *
+struct rte_mempool * __rte_experimental
 rte_comp_op_pool_create(const char *name,
 		unsigned int nb_elts, unsigned int cache_size,
 		uint16_t user_size, int socket_id);
-
-/**
- * Bulk allocate raw element from mempool and return as comp operations
- *
- * @param mempool
- *   Compress operation mempool
- * @param ops
- *   Array to place allocated operations
- * @param nb_ops
- *   Number of operations to allocate
- * @return
- *   - 0: Success
- *   - -ENOENT: Not enough entries in the mempool; no ops are retrieved.
- */
-static inline int
-__rte_comp_op_raw_bulk_alloc(struct rte_mempool *mempool,
-		struct rte_comp_op **ops, uint16_t nb_ops)
-{
-	return rte_mempool_get_bulk(mempool, (void **)ops, nb_ops);
-}
 
 /**
  * Allocate an operation from a mempool with default parameters set
@@ -447,21 +378,8 @@ __rte_comp_op_raw_bulk_alloc(struct rte_mempool *mempool,
  * - On success returns a valid rte_comp_op structure
  * - On failure returns NULL
  */
-static inline struct rte_comp_op *
-rte_comp_op_alloc(struct rte_mempool *mempool)
-{
-	struct rte_comp_op *op = NULL;
-	int retval;
-
-	retval = __rte_comp_op_raw_bulk_alloc(mempool, &op, 1);
-	if (unlikely(retval < 0))
-		return NULL;
-
-	__rte_comp_op_reset(op);
-
-	return op;
-}
-
+struct rte_comp_op * __rte_experimental
+rte_comp_op_alloc(struct rte_mempool *mempool);
 
 /**
  * Bulk allocate operations from a mempool with default parameters set
@@ -476,67 +394,20 @@ rte_comp_op_alloc(struct rte_mempool *mempool)
  *   - 0: Success
  *   - -ENOENT: Not enough entries in the mempool; no ops are retrieved.
  */
-static inline int
+int __rte_experimental
 rte_comp_op_bulk_alloc(struct rte_mempool *mempool,
-		struct rte_comp_op **ops, uint16_t nb_ops)
-{
-	int ret;
-	uint16_t i;
-
-	ret = __rte_comp_op_raw_bulk_alloc(mempool, ops, nb_ops);
-	if (unlikely(ret < 0))
-		return ret;
-
-	for (i = 0; i < nb_ops; i++)
-		__rte_comp_op_reset(ops[i]);
-
-	return 0;
-}
-
-
+		struct rte_comp_op **ops, uint16_t nb_ops);
 
 /**
- * Returns a pointer to the private user data of an operation if
- * that operation has enough capacity for requested size.
- *
- * @param op
- *   Compress operation
- * @param size
- *   Size of space requested in private data
- * @return
- * - if sufficient space available returns pointer to start of user data
- * - if insufficient space returns NULL
- */
-static inline void *
-__rte_comp_op_get_user_data(struct rte_comp_op *op, uint32_t size)
-{
-	uint32_t user_size;
-
-	if (likely(op->mempool != NULL)) {
-		user_size = __rte_comp_op_get_user_data_size(op->mempool);
-
-		if (likely(user_size >= size))
-			return (void *)(op + 1);
-
-	}
-
-	return NULL;
-}
-
-/**
- * free operation structure
+ * Free operation structure
  * If operation has been allocate from a rte_mempool, then the operation will
  * be returned to the mempool.
  *
  * @param op
  *   Compress operation
  */
-static inline void
-rte_comp_op_free(struct rte_comp_op *op)
-{
-	if (op != NULL && op->mempool != NULL)
-		rte_mempool_put(op->mempool, op);
-}
+void __rte_experimental
+rte_comp_op_free(struct rte_comp_op *op);
 
 #ifdef __cplusplus
 }
