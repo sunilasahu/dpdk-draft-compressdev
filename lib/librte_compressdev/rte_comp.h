@@ -427,16 +427,14 @@ rte_comp_op_pool_create(const char *name,
  * @param nb_ops
  *   Number of operations to allocate
  * @return
- * - On success returns  number of ops allocated
+ *   - 0: Success
+ *   - -ENOENT: Not enough entries in the mempool; no ops are retrieved.
  */
 static inline int
 __rte_comp_op_raw_bulk_alloc(struct rte_mempool *mempool,
 		struct rte_comp_op **ops, uint16_t nb_ops)
 {
-	if (rte_mempool_get_bulk(mempool, (void **)ops, nb_ops) == 0)
-		return nb_ops;
-
-	return 0;
+	return rte_mempool_get_bulk(mempool, (void **)ops, nb_ops);
 }
 
 /**
@@ -456,7 +454,7 @@ rte_comp_op_alloc(struct rte_mempool *mempool)
 	int retval;
 
 	retval = __rte_comp_op_raw_bulk_alloc(mempool, &op, 1);
-	if (unlikely(retval != 1))
+	if (unlikely(retval < 0))
 		return NULL;
 
 	__rte_comp_op_reset(op);
@@ -475,24 +473,24 @@ rte_comp_op_alloc(struct rte_mempool *mempool)
  * @param nb_ops
  *   Number of operations to allocate
  * @return
- * - nb_ops if the number of operations requested were allocated.
- * - 0 if the requested number of ops are not available.
- *   None are allocated in this case.
+ *   - 0: Success
+ *   - -ENOENT: Not enough entries in the mempool; no ops are retrieved.
  */
-static inline unsigned
+static inline int
 rte_comp_op_bulk_alloc(struct rte_mempool *mempool,
 		struct rte_comp_op **ops, uint16_t nb_ops)
 {
-	int i;
+	int ret;
+	uint16_t i;
 
-	if (unlikely(__rte_comp_op_raw_bulk_alloc(mempool, ops, nb_ops)
-			!= nb_ops))
-		return 0;
+	ret = __rte_comp_op_raw_bulk_alloc(mempool, ops, nb_ops);
+	if (unlikely(ret < 0))
+		return ret;
 
 	for (i = 0; i < nb_ops; i++)
 		__rte_comp_op_reset(ops[i]);
 
-	return nb_ops;
+	return 0;
 }
 
 
