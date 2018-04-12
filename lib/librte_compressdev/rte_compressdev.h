@@ -17,16 +17,11 @@
 extern "C" {
 #endif
 
+#include <rte_common.h>
+
 #include "rte_kvargs.h"
 #include "rte_comp.h"
 #include "rte_dev.h"
-#include <rte_common.h>
-
-/* Logging Macros */
-extern int compressdev_logtype;
-#define COMPRESSDEV_LOG(level, fmt, args...) \
-	rte_log(RTE_LOG_ ## level, compressdev_logtype, "%s(): "fmt "\n", \
-			__func__, ##args)
 
 /**
  * Parameter log base 2 range description.

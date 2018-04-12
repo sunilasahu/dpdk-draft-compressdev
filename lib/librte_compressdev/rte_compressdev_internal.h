@@ -14,6 +14,12 @@
 #define RTE_COMPRESSDEV_NAME_MAX_LEN	(64)
 /**< Max length of name of comp PMD */
 
+/* Logging Macros */
+extern int compressdev_logtype;
+#define COMPRESSDEV_LOG(level, fmt, args...) \
+	rte_log(RTE_LOG_ ## level, compressdev_logtype, "%s(): "fmt "\n", \
+			__func__, ##args)
+
 /**
  * Definitions of all functions exported by a driver through the
  * the generic structure of type *comp_dev_ops* supplied in the

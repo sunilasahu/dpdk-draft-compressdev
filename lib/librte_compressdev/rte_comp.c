@@ -4,6 +4,7 @@
 
 #include "rte_comp.h"
 #include "rte_compressdev.h"
+#include "rte_compressdev_internal.h"
 
 /**
  * Reset the fields of an operation to their default values.
