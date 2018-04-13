@@ -1,18 +1,15 @@
 EXPERIMENTAL {
         global:
 
-        rte_compressdevs;
-	rte_compressdev_allocate_driver;
 	rte_compressdev_callback_register;
 	rte_compressdev_callback_unregister;
 	rte_compressdev_capability_get;
 	rte_compressdev_close;
 	rte_compressdev_configure;
 	rte_compressdev_count;
-	rte_compressdev_device_count_by_driver;
+	rte_compressdev_dequeue_burst;
 	rte_compressdev_devices_get;
-	rte_compressdev_driver_id_get;
-	rte_compressdev_driver_name_get;
+	rte_compressdev_enqueue_burst;
 	rte_compressdev_get_dev_id;
 	rte_compressdev_get_feature_name;
 	rte_compressdev_info_get;
@@ -23,7 +20,6 @@ EXPERIMENTAL {
 	rte_compressdev_pmd_destroy;
 	rte_compressdev_pmd_get_dev;
 	rte_compressdev_pmd_get_named_dev;
-	rte_compressdev_pmd_is_valid_dev;
 	rte_compressdev_pmd_parse_input_args;
 	rte_compressdev_pmd_release_device;
 	rte_compressdev_private_xform_create;
@@ -38,6 +34,9 @@ EXPERIMENTAL {
 	rte_compressdev_stream_create;
 	rte_compressdev_stream_free;
 	rte_comp_get_feature_name;
+	rte_comp_op_alloc;
+	rte_comp_op_bulk_alloc;
+	rte_comp_op_free;
 	rte_comp_op_pool_create;
 
         local: *;

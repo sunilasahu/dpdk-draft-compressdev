@@ -20,14 +20,10 @@ extern "C" {
 #include <string.h>
 
 #include <rte_dev.h>
-#include <rte_malloc.h>
-#include <rte_mbuf.h>
-#include <rte_mempool.h>
-#include <rte_log.h>
 #include <rte_common.h>
 
-#include "rte_comp.h"
 #include "rte_compressdev.h"
+#include "rte_compressdev_internal.h"
 
 #define RTE_COMPRESSDEV_PMD_NAME_ARG			("name")
 #define RTE_COMPRESSDEV_PMD_SOCKET_ID_ARG		("socket_id")
@@ -43,7 +39,6 @@ static const char * const compressdev_pmd_valid_params[] = {
  */
 struct rte_compressdev_pmd_init_params {
 	char name[RTE_COMPRESSDEV_NAME_MAX_LEN];
-	size_t private_data_size;
 	int socket_id;
 };
 
@@ -92,24 +87,13 @@ struct rte_compressdev * __rte_experimental
 rte_compressdev_pmd_get_named_dev(const char *name);
 
 /**
- * Validate if the comp device index is valid attached comp device.
- *
- * @param dev_id
- *   Compress device identifier
- * @return
- *   - If the device index is valid (1) or not (0).
- */
-unsigned int __rte_experimental
-rte_compressdev_pmd_is_valid_dev(uint8_t dev_id);
-
-/**
  * Definitions of all functions exported by a driver through the
  * the generic structure of type *comp_dev_ops* supplied in the
  * *rte_compressdev* structure associated with a device.
  */
 
 /**
- *	Function used to configure device.
+ * Function used to configure device.
  *
  * @param dev
  *   Compress device
@@ -222,7 +206,6 @@ typedef int (*compressdev_queue_pair_release_t)(struct rte_compressdev *dev,
  */
 typedef uint32_t (*compressdev_queue_pair_count_t)(struct rte_compressdev *dev);
 
-
 /**
  * Create driver private stream data.
  *
@@ -325,7 +308,6 @@ struct rte_compressdev_ops {
 	/**< Free a comp private_xform's data. */
 };
 
-
 /**
  * @internal
  *
@@ -402,6 +384,7 @@ rte_compressdev_pmd_parse_input_args(
 struct rte_compressdev * __rte_experimental
 rte_compressdev_pmd_create(const char *name,
 		struct rte_device *device,
+		size_t private_data_size,
 		struct rte_compressdev_pmd_init_params *params);
 
 /**
@@ -419,29 +402,6 @@ rte_compressdev_pmd_create(const char *name,
 int __rte_experimental
 rte_compressdev_pmd_destroy(struct rte_compressdev *dev);
 
-
-/**
- * @internal
- * Allocate compressdev driver.
- *
- * @param comp_drv
- *   Compressdev driver
- * @param drv
- *   Rte_driver
- * @return
- *  The driver type identifier
- */
-uint8_t __rte_experimental
-rte_compressdev_allocate_driver(struct compressdev_driver *comp_drv,
-		const struct rte_driver *drv);
-
-
-#define RTE_PMD_REGISTER_COMPRESSDEV_DRIVER(comp_drv, drv, driver_id)\
-RTE_INIT(init_ ##driver_id);\
-static void init_ ##driver_id(void)\
-{\
-	driver_id = rte_compressdev_allocate_driver(&comp_drv, &(drv).driver);\
-}
 
 #ifdef __cplusplus
 }
