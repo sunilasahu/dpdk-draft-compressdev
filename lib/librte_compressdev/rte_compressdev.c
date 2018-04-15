@@ -2,46 +2,20 @@
  * Copyright(c) 2017-2018 Intel Corporation
  */
 
-#include <sys/types.h>
 #include <sys/queue.h>
-#include <ctype.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
-#include <errno.h>
-#include <stdint.h>
-#include <inttypes.h>
-#include <netinet/in.h>
+#include <stdio.h>
 
-#include <rte_byteorder.h>
-#include <rte_log.h>
-#include <rte_debug.h>
-#include <rte_dev.h>
-#include <rte_interrupts.h>
-#include <rte_memory.h>
-#include <rte_memcpy.h>
-#include <rte_memzone.h>
-#include <rte_launch.h>
-#include <rte_tailq.h>
-#include <rte_eal.h>
-#include <rte_per_lcore.h>
-#include <rte_lcore.h>
-#include <rte_atomic.h>
-#include <rte_branch_prediction.h>
-#include <rte_common.h>
-#include <rte_mempool.h>
 #include <rte_malloc.h>
-#include <rte_mbuf.h>
-#include <rte_errno.h>
-#include <rte_spinlock.h>
-#include <rte_string_fns.h>
 
 #include "rte_comp.h"
+#include "rte_compressdev_internal.h"
 #include "rte_compressdev.h"
 #include "rte_compressdev_pmd.h"
 
-static uint8_t nb_drivers;
+#define RTE_COMPRESSDEV_DETACHED  (0)
+#define RTE_COMPRESSDEV_ATTACHED  (1)
 
 struct rte_compressdev rte_comp_devices[RTE_COMPRESS_MAX_DEVS];
 
@@ -55,21 +29,6 @@ static struct rte_compressdev_global compressdev_globals = {
 };
 
 struct rte_compressdev_global *rte_compressdev_globals = &compressdev_globals;
-
-/**
- * The compression algorithm strings identifiers.
- * It could be used in application command line.
- */
-const char *
-rte_comp_algorithm_strings[] = {
-	[RTE_COMP_ALGO_DEFLATE]		= "deflate",
-	[RTE_COMP_ALGO_LZS]		= "lzs"
-};
-
-
-#define param_range_check(x, y) \
-	(((x < y.min) || (x > y.max)) || \
-	(y.increment != 0 && (x % y.increment) != 0))
 
 const struct rte_compressdev_capabilities * __rte_experimental
 rte_compressdev_capability_get(uint8_t dev_id,
@@ -135,6 +94,12 @@ rte_comp_get_feature_name(uint64_t flag)
 		return "CRC32_ADLER32_CHECKSUM";
 	case RTE_COMP_FF_NONCOMPRESSED_BLOCKS:
 		return "NONCOMPRESSED_BLOCKS";
+	case RTE_COMP_FF_SHA1_HASH:
+		return "SHA1_HASH";
+	case RTE_COMP_FF_SHA2_SHA256_HASH:
+		return "SHA2_SHA256_HASH";
+	case RTE_COMP_FF_SHAREABLE_PRIV_XFORM:
+		return "SHAREABLE_PRIV_XFORM";
 	default:
 		return NULL;
 	}
@@ -166,8 +131,8 @@ rte_compressdev_pmd_get_named_dev(const char *name)
 	return NULL;
 }
 
-unsigned int __rte_experimental
-rte_compressdev_pmd_is_valid_dev(uint8_t dev_id)
+static unsigned int
+rte_compressdev_is_valid_dev(uint8_t dev_id)
 {
 	struct rte_compressdev *dev = NULL;
 
@@ -207,20 +172,6 @@ rte_compressdev_count(void)
 }
 
 uint8_t __rte_experimental
-rte_compressdev_device_count_by_driver(uint8_t driver_id)
-{
-	uint8_t i, dev_count = 0;
-
-	for (i = 0; i < rte_compressdev_globals->max_devs; i++)
-		if (rte_compressdev_globals->devs[i].driver_id == driver_id &&
-			rte_compressdev_globals->devs[i].attached ==
-					RTE_COMPRESSDEV_ATTACHED)
-			dev_count++;
-
-	return dev_count;
-}
-
-uint8_t __rte_experimental
 rte_compressdev_devices_get(const char *driver_name, uint8_t *devices,
 	uint8_t nb_devices)
 {
@@ -245,13 +196,12 @@ rte_compressdev_devices_get(const char *driver_name, uint8_t *devices,
 	return count;
 }
 
-
 int __rte_experimental
 rte_compressdev_socket_id(uint8_t dev_id)
 {
 	struct rte_compressdev *dev;
 
-	if (!rte_compressdev_pmd_is_valid_dev(dev_id))
+	if (!rte_compressdev_is_valid_dev(dev_id))
 		return -1;
 
 	dev = rte_compressdev_pmd_get_dev(dev_id);
@@ -320,7 +270,6 @@ rte_compressdev_pmd_allocate(const char *name, int socket_id)
 		COMPRESSDEV_LOG(ERR, "Reached maximum number of comp devices");
 		return NULL;
 	}
-
 	compressdev = rte_compressdev_pmd_get_dev(dev_id);
 
 	if (compressdev->data == NULL) {
@@ -465,7 +414,7 @@ rte_compressdev_configure(uint8_t dev_id, struct rte_compressdev_config *config)
 	struct rte_compressdev *dev;
 	int diag;
 
-	if (!rte_compressdev_pmd_is_valid_dev(dev_id)) {
+	if (!rte_compressdev_is_valid_dev(dev_id)) {
 		COMPRESSDEV_LOG(ERR, "Invalid dev_id=%" PRIu8, dev_id);
 		return -EINVAL;
 	}
@@ -502,7 +451,7 @@ rte_compressdev_start(uint8_t dev_id)
 
 	COMPRESSDEV_LOG(DEBUG, "Start dev_id=%" PRIu8, dev_id);
 
-	if (!rte_compressdev_pmd_is_valid_dev(dev_id)) {
+	if (!rte_compressdev_is_valid_dev(dev_id)) {
 		COMPRESSDEV_LOG(ERR, "Invalid dev_id=%" PRIu8, dev_id);
 		return -EINVAL;
 	}
@@ -531,7 +480,7 @@ rte_compressdev_stop(uint8_t dev_id)
 {
 	struct rte_compressdev *dev;
 
-	if (!rte_compressdev_pmd_is_valid_dev(dev_id)) {
+	if (!rte_compressdev_is_valid_dev(dev_id)) {
 		COMPRESSDEV_LOG(ERR, "Invalid dev_id=%" PRIu8, dev_id);
 		return;
 	}
@@ -556,7 +505,7 @@ rte_compressdev_close(uint8_t dev_id)
 	struct rte_compressdev *dev;
 	int retval;
 
-	if (!rte_compressdev_pmd_is_valid_dev(dev_id)) {
+	if (!rte_compressdev_is_valid_dev(dev_id)) {
 		COMPRESSDEV_LOG(ERR, "Invalid dev_id=%" PRIu8, dev_id);
 		return -1;
 	}
@@ -585,7 +534,7 @@ rte_compressdev_queue_pair_setup(uint8_t dev_id, uint16_t queue_pair_id,
 {
 	struct rte_compressdev *dev;
 
-	if (!rte_compressdev_pmd_is_valid_dev(dev_id)) {
+	if (!rte_compressdev_is_valid_dev(dev_id)) {
 		COMPRESSDEV_LOG(ERR, "Invalid dev_id=%" PRIu8, dev_id);
 		return -EINVAL;
 	}
@@ -614,13 +563,34 @@ rte_compressdev_queue_pair_setup(uint8_t dev_id, uint16_t queue_pair_id,
 			max_inflight_ops, socket_id);
 }
 
+uint16_t __rte_experimental
+rte_compressdev_dequeue_burst(uint8_t dev_id, uint16_t qp_id,
+		struct rte_comp_op **ops, uint16_t nb_ops)
+{
+	struct rte_compressdev *dev = &rte_compressdevs[dev_id];
+
+	nb_ops = (*dev->dequeue_burst)
+			(dev->data->queue_pairs[qp_id], ops, nb_ops);
+
+	return nb_ops;
+}
+
+uint16_t __rte_experimental
+rte_compressdev_enqueue_burst(uint8_t dev_id, uint16_t qp_id,
+		struct rte_comp_op **ops, uint16_t nb_ops)
+{
+	struct rte_compressdev *dev = &rte_compressdevs[dev_id];
+
+	return (*dev->enqueue_burst)(
+			dev->data->queue_pairs[qp_id], ops, nb_ops);
+}
 
 int __rte_experimental
 rte_compressdev_stats_get(uint8_t dev_id, struct rte_compressdev_stats *stats)
 {
 	struct rte_compressdev *dev;
 
-	if (!rte_compressdev_pmd_is_valid_dev(dev_id)) {
+	if (!rte_compressdev_is_valid_dev(dev_id)) {
 		COMPRESSDEV_LOG(ERR, "Invalid dev_id=%d", dev_id);
 		return -ENODEV;
 	}
@@ -643,7 +613,7 @@ rte_compressdev_stats_reset(uint8_t dev_id)
 {
 	struct rte_compressdev *dev;
 
-	if (!rte_compressdev_pmd_is_valid_dev(dev_id)) {
+	if (!rte_compressdev_is_valid_dev(dev_id)) {
 		COMPRESSDEV_LOG(ERR, "Invalid dev_id=%" PRIu8, dev_id);
 		return;
 	}
@@ -772,103 +742,6 @@ rte_compressdev_stream_free(uint8_t dev_id, void *stream)
 	return 0;
 }
 
-
-/** Initialise rte_comp_op mempool element */
-static void
-rte_comp_op_init(struct rte_mempool *mempool,
-		__rte_unused void *opaque_arg,
-		void *_op_data,
-		__rte_unused unsigned int i)
-{
-	struct rte_comp_op *op = _op_data;
-
-	memset(_op_data, 0, mempool->elt_size);
-
-	op->status = RTE_COMP_OP_STATUS_NOT_PROCESSED;
-	op->phys_addr = rte_mem_virt2iova(_op_data);
-	op->mempool = mempool;
-}
-
-
-struct rte_mempool * __rte_experimental
-rte_comp_op_pool_create(const char *name,
-		unsigned int nb_elts, unsigned int cache_size,
-		uint16_t user_size, int socket_id)
-{
-	struct rte_comp_op_pool_private *priv;
-
-	unsigned int elt_size = sizeof(struct rte_comp_op) + user_size;
-
-	/* lookup mempool in case already allocated */
-	struct rte_mempool *mp = rte_mempool_lookup(name);
-
-	if (mp != NULL) {
-		priv = (struct rte_comp_op_pool_private *)
-				rte_mempool_get_priv(mp);
-
-		if (mp->elt_size != elt_size ||
-				mp->cache_size < cache_size ||
-				mp->size < nb_elts ||
-				priv->user_size <  user_size) {
-			mp = NULL;
-			COMPRESSDEV_LOG(ERR,
-		"Mempool %s already exists but with incompatible parameters",
-					name);
-			return NULL;
-		}
-		return mp;
-	}
-
-	mp = rte_mempool_create(
-			name,
-			nb_elts,
-			elt_size,
-			cache_size,
-			sizeof(struct rte_comp_op_pool_private),
-			NULL,
-			NULL,
-			rte_comp_op_init,
-			NULL,
-			socket_id,
-			0);
-
-	if (mp == NULL) {
-		COMPRESSDEV_LOG(ERR, "Failed to create mempool %s", name);
-		return NULL;
-	}
-
-	priv = (struct rte_comp_op_pool_private *)
-			rte_mempool_get_priv(mp);
-
-	priv->user_size = user_size;
-
-	return mp;
-}
-
-TAILQ_HEAD(compressdev_driver_list, compressdev_driver);
-
-static struct compressdev_driver_list compressdev_driver_list =
-	TAILQ_HEAD_INITIALIZER(compressdev_driver_list);
-
-int __rte_experimental
-rte_compressdev_driver_id_get(const char *name)
-{
-	struct compressdev_driver *driver;
-	const char *driver_name;
-
-	if (name == NULL) {
-		COMPRESSDEV_LOG(DEBUG, "name pointer NULL");
-		return -1;
-	}
-
-	TAILQ_FOREACH(driver, &compressdev_driver_list, next) {
-		driver_name = driver->driver->name;
-		if (strncmp(driver_name, name, strlen(driver_name)) == 0)
-			return driver->id;
-	}
-	return -1;
-}
-
 const char * __rte_experimental
 rte_compressdev_name_get(uint8_t dev_id)
 {
@@ -878,29 +751,6 @@ rte_compressdev_name_get(uint8_t dev_id)
 		return NULL;
 
 	return dev->data->name;
-}
-
-const char * __rte_experimental
-rte_compressdev_driver_name_get(uint8_t driver_id)
-{
-	struct compressdev_driver *driver;
-
-	TAILQ_FOREACH(driver, &compressdev_driver_list, next)
-		if (driver->id == driver_id)
-			return driver->driver->name;
-	return NULL;
-}
-
-uint8_t
-rte_compressdev_allocate_driver(struct compressdev_driver *comp_drv,
-		const struct rte_driver *drv)
-{
-	comp_drv->driver = drv;
-	comp_drv->id = nb_drivers;
-
-	TAILQ_INSERT_TAIL(&compressdev_driver_list, comp_drv, next);
-
-	return nb_drivers++;
 }
 
 RTE_INIT(rte_compressdev_log);

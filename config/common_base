@@ -535,10 +535,9 @@ CONFIG_RTE_LIBRTE_PMD_MRVL_CRYPTO=n
 CONFIG_RTE_LIBRTE_PMD_MRVL_CRYPTO_DEBUG=n
 
 #
-# Compile generic compression device library
+# Compile generic security library
 #
-CONFIG_RTE_LIBRTE_COMPRESSDEV=y
-CONFIG_RTE_COMPRESS_MAX_DEVS=64
+CONFIG_RTE_LIBRTE_SECURITY=y
 
 #
 # Adding ZLIB PMD
@@ -547,9 +546,10 @@ CONFIG_RTE_LIBRTE_PMD_ZLIB=n
 CONFIG_RTE_LIBRTE_PMD_ZLIB_DEBUG=n
 
 #
-# Compile generic security library
+# Compile generic compression device library
 #
-CONFIG_RTE_LIBRTE_SECURITY=y
+CONFIG_RTE_LIBRTE_COMPRESSDEV=y
+CONFIG_RTE_COMPRESS_MAX_DEVS=64
 
 #
 # Compile generic event device library
