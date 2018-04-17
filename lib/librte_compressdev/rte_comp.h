@@ -212,14 +212,8 @@ struct rte_comp_decompress_xform {
  * This is used to specify the compression transforms required.
  * Each transform structure can hold a single transform, the type field is
  * used to specify which transform is contained within the union.
- * There are no chain cases currently supported, just single xforms of
- *  - compress-only
- *  - decompress-only
- *
  */
 struct rte_comp_xform {
-	struct rte_comp_xform *next;
-	/**< next xform in chain */
 	enum rte_comp_xform_type type;
 	/**< xform type */
 	union {
