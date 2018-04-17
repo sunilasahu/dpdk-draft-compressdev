@@ -6,8 +6,11 @@
 #include <string.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <inttypes.h>
 
 #include <rte_malloc.h>
+#include <rte_eal.h>
+#include <rte_memzone.h>
 
 #include "rte_comp.h"
 #include "rte_compressdev_internal.h"
