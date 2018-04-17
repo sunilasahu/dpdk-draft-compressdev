@@ -57,18 +57,6 @@ extern struct rte_compressdev *rte_compressdevs;
 extern struct rte_compressdev_global *rte_compressdev_globals;
 
 /**
- * Get the rte_compressdev structure device pointer for the device. Assumes a
- * valid device index.
- *
- * @param dev_id
- *   Compress device identifier
- * @return
- *   - The rte_compressdev structure pointer for the given device identifier.
- */
-struct rte_compressdev * __rte_experimental
-rte_compressdev_pmd_get_dev(uint8_t dev_id);
-
-/**
  * Get the rte_compressdev structure device pointer for the named device.
  *
  * @param name

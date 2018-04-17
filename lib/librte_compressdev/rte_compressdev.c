@@ -108,8 +108,8 @@ rte_comp_get_feature_name(uint64_t flag)
 	}
 }
 
-struct rte_compressdev * __rte_experimental
-rte_compressdev_pmd_get_dev(uint8_t dev_id)
+static struct rte_compressdev *
+rte_compressdev_get_dev(uint8_t dev_id)
 {
 	return &rte_compressdev_globals->devs[dev_id];
 }
@@ -142,7 +142,7 @@ rte_compressdev_is_valid_dev(uint8_t dev_id)
 	if (dev_id >= rte_compressdev_globals->nb_devs)
 		return 0;
 
-	dev = rte_compressdev_pmd_get_dev(dev_id);
+	dev = rte_compressdev_get_dev(dev_id);
 	if (dev->attached != RTE_COMPRESSDEV_ATTACHED)
 		return 0;
 	else
@@ -207,7 +207,7 @@ rte_compressdev_socket_id(uint8_t dev_id)
 	if (!rte_compressdev_is_valid_dev(dev_id))
 		return -1;
 
-	dev = rte_compressdev_pmd_get_dev(dev_id);
+	dev = rte_compressdev_get_dev(dev_id);
 
 	return dev->data->socket_id;
 }
@@ -273,7 +273,7 @@ rte_compressdev_pmd_allocate(const char *name, int socket_id)
 		COMPRESSDEV_LOG(ERR, "Reached maximum number of comp devices");
 		return NULL;
 	}
-	compressdev = rte_compressdev_pmd_get_dev(dev_id);
+	compressdev = rte_compressdev_get_dev(dev_id);
 
 	if (compressdev->data == NULL) {
 		struct rte_compressdev_data *compressdev_data =
@@ -656,7 +656,7 @@ rte_compressdev_private_xform_create(uint8_t dev_id,
 	struct rte_compressdev *dev;
 	int ret;
 
-	dev = rte_compressdev_pmd_get_dev(dev_id);
+	dev = rte_compressdev_get_dev(dev_id);
 
 	if (xform == NULL || priv_xform == NULL || dev == NULL)
 		return -EINVAL;
@@ -679,7 +679,7 @@ rte_compressdev_private_xform_free(uint8_t dev_id, void *priv_xform)
 	struct rte_compressdev *dev;
 	int ret;
 
-	dev = rte_compressdev_pmd_get_dev(dev_id);
+	dev = rte_compressdev_get_dev(dev_id);
 
 	if (dev == NULL || priv_xform == NULL)
 		return -EINVAL;
@@ -704,7 +704,7 @@ rte_compressdev_stream_create(uint8_t dev_id,
 	struct rte_compressdev *dev;
 	int ret;
 
-	dev = rte_compressdev_pmd_get_dev(dev_id);
+	dev = rte_compressdev_get_dev(dev_id);
 
 	if (xform == NULL || dev == NULL || stream == NULL)
 		return -EINVAL;
@@ -728,7 +728,7 @@ rte_compressdev_stream_free(uint8_t dev_id, void *stream)
 	struct rte_compressdev *dev;
 	int ret;
 
-	dev = rte_compressdev_pmd_get_dev(dev_id);
+	dev = rte_compressdev_get_dev(dev_id);
 
 	if (dev == NULL || stream == NULL)
 		return -EINVAL;
@@ -748,7 +748,7 @@ rte_compressdev_stream_free(uint8_t dev_id, void *stream)
 const char * __rte_experimental
 rte_compressdev_name_get(uint8_t dev_id)
 {
-	struct rte_compressdev *dev = rte_compressdev_pmd_get_dev(dev_id);
+	struct rte_compressdev *dev = rte_compressdev_get_dev(dev_id);
 
 	if (dev == NULL)
 		return NULL;
