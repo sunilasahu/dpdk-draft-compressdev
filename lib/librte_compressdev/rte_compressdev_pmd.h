@@ -51,13 +51,6 @@ struct rte_compressdev_global {
 	uint8_t max_devs;		/**< Max number of devices */
 };
 
-/* compressdev driver, containing the driver identifier */
-struct compressdev_driver {
-	TAILQ_ENTRY(compressdev_driver) next; /**< Next in list. */
-	const struct rte_driver *driver;
-	uint8_t id;
-};
-
 /** Pointer to global array of comp devices */
 extern struct rte_compressdev *rte_compressdevs;
 /** Pointer to global comp devices data structure */
