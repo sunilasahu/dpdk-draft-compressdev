@@ -411,6 +411,43 @@ rte_compressdev_queue_pairs_config(struct rte_compressdev *dev,
 	return 0;
 }
 
+static int
+rte_compressdev_queue_pairs_release(struct rte_compressdev *dev)
+{
+	uint16_t num_qps, i;
+	int ret;
+
+	if ((dev == NULL)) {
+		COMPRESSDEV_LOG(ERR, "invalid param: dev %p", dev);
+		return -EINVAL;
+	}
+
+	num_qps = dev->data->nb_queue_pairs;
+
+	if (num_qps == 0)
+		return 0;
+
+	COMPRESSDEV_LOG(DEBUG, "Free %d queues pairs on device %u",
+			dev->data->nb_queue_pairs, dev->data->dev_id);
+
+	RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->queue_pair_release,
+				-ENOTSUP);
+
+	for (i = 0; i < num_qps; i++) {
+		ret = (*dev->dev_ops->queue_pair_release)(dev, i);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (dev->data->queue_pairs != NULL)
+		rte_free(dev->data->queue_pairs);
+	dev->data->queue_pairs = NULL;
+	dev->data->nb_queue_pairs = 0;
+
+	return 0;
+}
+
+
 int __rte_experimental
 rte_compressdev_configure(uint8_t dev_id, struct rte_compressdev_config *config)
 {
@@ -521,6 +558,12 @@ rte_compressdev_close(uint8_t dev_id)
 				dev_id);
 		return -EBUSY;
 	}
+
+	/* Free queue pairs memory */
+	retval = rte_compressdev_queue_pairs_release(dev);
+
+	if (retval < 0)
+		return retval;
 
 	RTE_FUNC_PTR_OR_ERR_RET(*dev->dev_ops->dev_close, -ENOTSUP);
 	retval = (*dev->dev_ops->dev_close)(dev);
