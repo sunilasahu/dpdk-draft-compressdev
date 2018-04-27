@@ -65,7 +65,7 @@ enum rte_comp_algorithm {
 
 /** Compression Hash Algorithms */
 enum rte_comp_hash_algorithm {
-	RTE_COMP_HASH_ALGO_UNSPECIFIED = 0,
+	RTE_COMP_HASH_ALGO_NONE = 0,
 	/**< No hash */
 	RTE_COMP_HASH_ALGO_SHA1,
 	/**< SHA1 hash algorithm */

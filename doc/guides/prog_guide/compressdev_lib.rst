@@ -346,7 +346,7 @@ using priv_xform would look like:
 			.level = RTE_COMP_LEVEL_PMD_DEFAULT,
 			.chksum = RTE_COMP_CHECKSUM_NONE,
 			.window_size = DEFAULT_WINDOW_SIZE,
-			.hash_algo = RTE_COMP_HASH_ALGO_UNSPECIFIED
+			.hash_algo = RTE_COMP_HASH_ALGO_NONE
 		}
     };
 
@@ -487,7 +487,7 @@ An example pseudocode to set up and process a stream having NUM_CHUNKS with each
 			.level = RTE_COMP_LEVEL_PMD_DEFAULT,
 			.chksum = RTE_COMP_CHECKSUM_NONE,
 			.window_size = DEFAULT_WINDOW_SIZE,
-                        .hash_algo = RTE_COMP_HASH_ALGO_UNSPECIFIED
+                        .hash_algo = RTE_COMP_HASH_ALGO_NONE
 		}
     };
 
