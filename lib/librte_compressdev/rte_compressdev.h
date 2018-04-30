@@ -17,52 +17,7 @@
 extern "C" {
 #endif
 
-#include "rte_kvargs.h"
-#include "rte_comp.h"
-#include "rte_dev.h"
 #include <rte_common.h>
-
-/* Logging Macros */
-extern int compressdev_logtype;
-#define COMPRESSDEV_LOG(level, fmt, args...) \
-	rte_log(RTE_LOG_ ## level, compressdev_logtype, "%s(): "fmt "\n", \
-			__func__, ##args)
-
-#define RTE_COMPRESSDEV_DETACHED  (0)
-#define RTE_COMPRESSDEV_ATTACHED  (1)
-
-#define RTE_COMPRESSDEV_NAME_MAX_LEN	(64)
-
-/**< Max length of name of comp PMD */
-/**
- * A macro that points to an offset from the start
- * of the comp operation structure (rte_comp_op)
- *
- * The returned pointer is cast to type t.
- *
- * @param c
- *   The comp operation
- * @param o
- *   The offset from the start of the comp operation
- * @param t
- *   The type to cast the result into
- */
-#define rte_comp_op_ctod_offset(c, t, o)	\
-	((t)((char *)(c) + (o)))
-
-/**
- * A macro that returns the physical address that points
- * to an offset from the start of the comp operation
- * (rte_comp_op).
- *
- * @param c
- *   The comp operation
- * @param o
- *   The offset from the start of the comp operation
- *   to calculate address from
- */
-#define rte_comp_op_ctophys_offset(c, o)	\
-	(rte_iova_t)((c)->phys_addr + (o))
 
 /**
  * Parameter log base 2 range description.
@@ -89,7 +44,6 @@ struct rte_compressdev_capabilities {
 	/**< Window size range in base two log byte values */
 };
 
-
 /** Macro used at end of comp PMD list */
 #define RTE_COMP_END_OF_CAPABILITIES_LIST() \
 	{ RTE_COMP_ALGO_UNSPECIFIED }
@@ -105,7 +59,6 @@ rte_compressdev_capability_get(uint8_t dev_id,
  *
  * Keep these flags synchronised with rte_compressdev_get_feature_name()
  */
-
 #define	RTE_COMPDEV_FF_HW_ACCELERATED		(1ULL << 0)
 /**< Operations are off-loaded to an external hardware accelerator */
 #define	RTE_COMPDEV_FF_CPU_SSE			(1ULL << 1)
@@ -146,6 +99,12 @@ rte_compressdev_capability_get(uint8_t dev_id,
 /**< SHA256 Hash of SHA2 family is supported */
 #define RTE_COMP_FF_NONCOMPRESSED_BLOCKS	(1ULL << 9)
 /**< Creation of non-compressed blocks using RTE_COMP_LEVEL_NONE is supported */
+#define RTE_COMP_FF_SHAREABLE_PRIV_XFORM	(1ULL << 10)
+/**< Private xforms created by the PMD can be shared
+ * across multiple stateless operations. If not set, then app needs
+ * to create as many priv_xforms as it expects to have stateless
+ * operations in-flight.
+ */
 
 /**
  * Get the name of a compress device feature flag.
@@ -174,16 +133,14 @@ rte_comp_get_feature_name(uint64_t flag);
 /**  comp device information */
 struct rte_compressdev_info {
 	const char *driver_name;		/**< Driver name. */
-	uint8_t driver_id;			/**< Driver identifier */
 	uint64_t feature_flags;			/**< Feature flags */
 	const struct rte_compressdev_capabilities *capabilities;
 	/**< Array of devices supported capabilities */
-	unsigned int max_nb_queue_pairs;
+	uint16_t max_nb_queue_pairs;
 	/**< Maximum number of queues pairs supported by device.
 	 * (If 0, there is no limit in maximum number of queue pairs)
 	 */
 };
-
 
 /** comp device statistics */
 struct rte_compressdev_stats {
@@ -234,17 +191,6 @@ uint8_t __rte_experimental
 rte_compressdev_count(void);
 
 /**
- * Get number of comp device defined type.
- *
- * @param driver_id
- *   Driver identifier
- * @return
- *   Returns number of comp device.
- */
-uint8_t __rte_experimental
-rte_compressdev_device_count_by_driver(uint8_t driver_id);
-
-/**
  * Get number and identifiers of attached comp devices that
  * use the same compress driver.
  *
@@ -261,6 +207,7 @@ rte_compressdev_device_count_by_driver(uint8_t driver_id);
 uint8_t __rte_experimental
 rte_compressdev_devices_get(const char *driver_name, uint8_t *devices,
 		uint8_t nb_devices);
+
 /*
  * Return the NUMA socket to which a device is connected.
  *
@@ -309,7 +256,7 @@ rte_compressdev_configure(uint8_t dev_id,
  * Start a device.
  *
  * The device start step is called after configuring the device and setting up
- * its queue_pairs.
+ * its queue pairs.
  * On success, data-path functions exported by the API (enqueue/dequeue, etc)
  * can be invoked.
  *
@@ -426,70 +373,6 @@ rte_compressdev_stats_reset(uint8_t dev_id);
 void __rte_experimental
 rte_compressdev_info_get(uint8_t dev_id, struct rte_compressdev_info *dev_info);
 
-
-typedef uint16_t (*compress_dequeue_pkt_burst_t)(void *qp,
-		struct rte_comp_op **ops, uint16_t nb_ops);
-/**< Dequeue processed packets from queue pair of a device. */
-
-typedef uint16_t (*compress_enqueue_pkt_burst_t)(void *qp,
-		struct rte_comp_op **ops, uint16_t nb_ops);
-/**< Enqueue packets for processing on queue pair of a device. */
-
-
-/** The data structure associated with each comp device. */
-struct rte_compressdev {
-	compress_dequeue_pkt_burst_t dequeue_burst;
-	/**< Pointer to PMD receive function */
-	compress_enqueue_pkt_burst_t enqueue_burst;
-	/**< Pointer to PMD transmit function */
-
-	struct rte_compressdev_data *data;
-	/**< Pointer to device data */
-	struct rte_compressdev_ops *dev_ops;
-	/**< Functions exported by PMD */
-	uint64_t feature_flags;
-	/**< Supported features */
-	struct rte_device *device;
-	/**< Backing device */
-
-	uint8_t driver_id;
-	/**< comp driver identifier*/
-
-	__extension__
-	uint8_t attached : 1;
-	/**< Flag indicating the device is attached */
-} __rte_cache_aligned;
-
-
-/**
- *
- * The data part, with no function pointers, associated with each device.
- *
- * This structure is safe to place in shared memory to be common among
- * different processes in a multi-process configuration.
- */
-struct rte_compressdev_data {
-	uint8_t dev_id;
-	/**< Compress device identifier */
-	uint8_t socket_id;
-	/**< Socket identifier where memory is allocated */
-	char name[RTE_COMPRESSDEV_NAME_MAX_LEN];
-	/**< Unique identifier name */
-
-	__extension__
-	uint8_t dev_started : 1;
-	/**< Device state: STARTED(1)/STOPPED(0) */
-
-	void **queue_pairs;
-	/**< Array of pointers to queue pairs. */
-	uint16_t nb_queue_pairs;
-	/**< Number of device queue pairs */
-
-	void *dev_private;
-	/**< PMD-specific private data */
-} __rte_cache_aligned;
-
-struct rte_compressdev *rte_compressdevs;
 /**
  *
  * Dequeue a burst of processed compression operations from a queue on the comp
@@ -511,7 +394,20 @@ struct rte_compressdev *rte_compressdevs;
  * The rte_compressdev_dequeue_burst() function does not provide any error
  * notification to avoid the corresponding overhead.
  *
- * Note: operation ordering is not maintained within the queue pair.
+ * @note: operation ordering is not maintained within the queue pair.
+ *
+ * @note: In case op status = OUT_OF_SPACE_TERMINATED, op.consumed=0 and the
+ * op must be resubmitted with the same input data and a larger output buffer.
+ * op.produced is usually 0, but in decompression cases a PMD may return > 0
+ * and the application may find it useful to inspect that data.
+ * This status is only returned on STATELESS ops.
+ *
+ * @note: In case op status = OUT_OF_SPACE_RECOVERABLE, op.produced can be used
+ * and next op in stream should continue on from op.consumed+1 with a fresh
+ * output buffer.
+ * Consumed=0, produced=0 is an unusual but allowed case. There may be useful
+ * state/history stored in the PMD, even though no output was produced yet.
+ *
  *
  * @param dev_id
  *   Compress device identifier
@@ -531,17 +427,9 @@ struct rte_compressdev *rte_compressdevs;
  *   of pointers to *rte_comp_op* structures effectively supplied to the
  *   *ops* array.
  */
-static inline uint16_t
+uint16_t __rte_experimental
 rte_compressdev_dequeue_burst(uint8_t dev_id, uint16_t qp_id,
-		struct rte_comp_op **ops, uint16_t nb_ops)
-{
-	struct rte_compressdev *dev = &rte_compressdevs[dev_id];
-
-	nb_ops = (*dev->dequeue_burst)
-			(dev->data->queue_pairs[qp_id], ops, nb_ops);
-
-	return nb_ops;
-}
+		struct rte_comp_op **ops, uint16_t nb_ops);
 
 /**
  * Enqueue a burst of operations for processing on a compression device.
@@ -561,7 +449,7 @@ rte_compressdev_dequeue_burst(uint8_t dev_id, uint16_t qp_id,
  * as the size of the output data is different to the size of the input data.
  *
  * @note The flush flag only applies to operations which return SUCCESS.
- * In OUT_OF_SPACE case whether STATEFUL or STATELESS, data in dest buffer
+ * In OUT_OF_SPACE cases whether STATEFUL or STATELESS, data in dest buffer
  * is as if flush flag was FLUSH_NONE.
  * @note flush flag only applies in compression direction. It has no meaning
  * for decompression.
@@ -586,16 +474,9 @@ rte_compressdev_dequeue_burst(uint8_t dev_id, uint16_t qp_id,
  *   comp devices queue is full or if invalid parameters are specified in
  *   a *rte_comp_op*.
  */
-static inline uint16_t
+uint16_t __rte_experimental
 rte_compressdev_enqueue_burst(uint8_t dev_id, uint16_t qp_id,
-		struct rte_comp_op **ops, uint16_t nb_ops)
-{
-	struct rte_compressdev *dev = &rte_compressdevs[dev_id];
-
-	return (*dev->enqueue_burst)(
-			dev->data->queue_pairs[qp_id], ops, nb_ops);
-}
-
+		struct rte_comp_op **ops, uint16_t nb_ops);
 
 /**
  * This should alloc a stream from the device's mempool and initialise it.
@@ -661,7 +542,7 @@ rte_compressdev_stream_free(uint8_t dev_id, void *stream);
  *   Pointer to where PMD's private_xform handle should be stored
  *
  * @return
- *  - if successful returns RTE_COMP_PRIV_XFORM_SHAREABLE/NOT_SHAREABLE
+ *  - if successful returns 0
  *    and valid private_xform handle
  *  - <0 in error cases
  *  - Returns -EINVAL if input parameters are invalid.
@@ -690,28 +571,6 @@ rte_compressdev_private_xform_create(uint8_t dev_id,
  */
 int __rte_experimental
 rte_compressdev_private_xform_free(uint8_t dev_id, void *private_xform);
-
-/**
- * Provide driver identifier.
- *
- * @param name
- *   Compress driver name
- * @return
- *  The driver type identifier or -1 if no driver found
- */
-int __rte_experimental
-rte_compressdev_driver_id_get(const char *name);
-
-/**
- * Provide driver name.
- *
- * @param driver_id
- *   The driver identifier
- * @return
- *  The driver name or null if no driver found
- */
-const char * __rte_experimental
-rte_compressdev_driver_name_get(uint8_t driver_id);
 
 #ifdef __cplusplus
 }
