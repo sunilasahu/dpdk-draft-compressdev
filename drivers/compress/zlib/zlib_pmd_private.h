@@ -78,14 +78,21 @@ struct zlib_session;
 typedef void (*comp_func_t)(struct rte_comp_op *op,
 				struct zlib_session *sess);
 
-/** ZLIB private session structure */
-struct zlib_session {
-	z_stream strm;
+/** ZLIB private xform structure */
+struct zlib_priv_xform {
+	__thread z_stream strm;
 	/**< zlib stream structure */
-	struct rte_comp_xform xform;
-	/**< Compression transform structure. */
-	comp_func_t func;
-	/**< function to process comp operation. */
+	enum rte_comp_xform_type type;
+	/**< Operation (compression/decompression) type */
+	enum rte_comp_private_xform_mode mode;
+} __rte_cache_aligned;
+
+/** ZLIB private session structure */
+struct zlib_stream {
+	__thread z_stream strm;
+	/**< zlib stream structure */
+	enum rte_comp_xform_type type;
+	/**< Operation (compression/decompression) type */
 } __rte_cache_aligned;
 
 /** Set ZLIB compression session parameters */

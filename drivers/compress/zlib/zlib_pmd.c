@@ -49,57 +49,166 @@ static uint8_t compressdev_driver_id;
 
 /** Process deflate operation */
 static void
-process_zlib_deflate(struct rte_comp_op *op, struct zlib_session *sess)
+process_zlib_stateful_deflate(struct rte_comp_op *op)
 {
 	int ret, flush;
-	z_stream *strm;
-	unsigned char *src, *dst;
+	z_stream *strm = &(op->priv_xform->z_stream);
+	uint8_t *src, *dst;
+	int l, n = srclen;
 
-	src = rte_pktmbuf_mtod_offset(op->m_src, unsigned char *,
-							op->src.offset);
-	dst = rte_pktmbuf_mtod_offset(op->m_dst, unsigned char *,
+	for (mbuf_src = op->m_src; mbuf_src != NULL && offset > rte_pktmbuf_data_len(mbuf_src);
+			mbuf_src = mbuf_src->next)
+		op->src.offset -= rte_pktmbuf_data_len(mbuf_src);
+
+	if (mbuf_src == 0)
+		return -1;
+
+	src = rte_pktmbuf_mtod_offset(mbuf_src, uint8_t *, op->src.offset);
+
+	sl = rte_pktmbuf_data_len(mbuf_src) - offset;
+	for (mbuf_dst = op->m_dst; mbuf_dst != NULL && offset > rte_pktmbuf_data_len(mbuf_dst);
+			mbuf_dst = mbuf_dst->next)
+		op->dst.offset -= rte_pktmbuf_data_len(mbuf_dst);
+
+	if (mbuf_dst == 0)
+		return -1;
+
+	dst = rte_pktmbuf_mtod_offset(mbuf_dst, unsigned char *,
 							op->dst.offset);
-	strm = &(sess->strm);
 
+	dl = rte_pktmbuf_data_len(mbuf_dst) - op->dst.offset;
 	if (unlikely(!src || !dst || !strm)) {
 		op->status = RTE_COMP_OP_STATUS_INVALID_ARGS;
 		ZLIB_LOG_ERR("\nInvalid source or destination buffers");
 		return;
 	}
 
-	switch (op->flush_flag) {
-	case RTE_COMP_FLUSH_NONE:
-		flush = Z_NO_FLUSH;
-		break;
-	case RTE_COMP_FLUSH_SYNC:
-		flush = Z_SYNC_FLUSH;
-		break;
-	case RTE_COMP_FLUSH_FULL:
-		flush = Z_FULL_FLUSH;
-		break;
-	case RTE_COMP_FLUSH_FINAL:
-		flush = Z_FINISH;
-		break;
-	default:
-		op->status = RTE_COMP_OP_STATUS_ERROR;
+	if (op->src.length <= sl) 
+		sl = op->src.length;
+
+	n = op->src.length;
+
+	while(n > 0)
+	{
+		strm->avail_in = sl;
+		strm->next_in = src;
+		flush = (n - sl)?Z_NO_FLUSH:Z_FINISH;
+		strm->avail_out = dl;
+		strm->next_out = dst;
+
+		ret = deflate(strm, flush);
+		op->produced += dl - strm->avail_out;
+		while(avail_out == 0 && n) {
+			dst = mbuf_dst->next;
+			if(!dst)
+			{
+				ZLIB_LOG_ERR("\nOut of memory for output buffer");
+				op->status = RTE_COMP_OP_STATUS_OUT_OF_SPACE;
+				return;
+			}
+			mbuf_dst = dst;
+			dl = rte_pktmbuf_data_len(dst);
+			strm->avail_out = dl;
+			strm->next_out = dst;
+			ret = deflate(strm, flush);
+			op->produced += dl - strm->avail_out;
+			n -=  stream.avail_in;
+		}
+		have = dl - strm.avail_out;
+		dst += have;
+		dl = strm.avail_out;
+		op->consumed += op->src.length - stream.avail_in;
+		if(stream.avail_in)
+			ZLIB_LOG_ERR("\ncomp err");
+	}
+
+	op->status = RTE_COMP_OP_STATUS_SUCCESS;
+
+	if (ret == Z_STREAM_END)
+		deflateReset(strm);
+}
+
+/** Process deflate operation */
+static void
+process_zlib_deflate(struct rte_comp_op *op)
+{
+	int ret, flush;
+	z_stream *strm = &(op->priv_xform->z_stream);
+	uint8_t *src, *dst;
+
+	for (mbuf_src = op->m_src; mbuf_src != NULL && offset > rte_pktmbuf_data_len(mbuf_src);
+			mbuf_src = mbuf_src->next)
+		op->src.offset -= rte_pktmbuf_data_len(mbuf_src);
+
+	if (mbuf_src == 0)
+		return -1;
+
+	src = rte_pktmbuf_mtod_offset(mbuf_src, uint8_t *, op->src.offset);
+
+	sl = rte_pktmbuf_data_len(mbuf_src) - offset;
+	for (mbuf_dst = op->m_dst; mbuf_dst != NULL && offset > rte_pktmbuf_data_len(mbuf_dst);
+			mbuf_dst = mbuf_dst->next)
+		op->dst.offset -= rte_pktmbuf_data_len(mbuf_dst);
+
+	if (mbuf_dst == 0)
+		return -1;
+
+	dst = rte_pktmbuf_mtod_offset(mbuf_dst, unsigned char *,
+							op->dst.offset);
+
+	dl = rte_pktmbuf_data_len(mbuf_dst) - op->dst.offset;
+	if (unlikely(!src || !dst || !strm)) {
+		op->status = RTE_COMP_OP_STATUS_INVALID_ARGS;
+		ZLIB_LOG_ERR("\nInvalid source or destination buffers");
 		return;
 	}
 
-	strm->avail_in = op->src.length;
-	strm->next_in = src;
-	strm->avail_out = rte_pktmbuf_data_len(op->m_dst);
-	strm->next_out = dst;
-	ret = deflate(strm, flush);
+	if (op->src.length <= sl) 
+		sl = op->src.length;
 
-	if (unlikely(Z_STREAM_END != ret && Z_OK != ret)) {
+	n = op->src.length;
+
+	while(n > 0)
+	{
+		strm->avail_in = sl;
+		strm->next_in = src;
+		flush = (n - sl)?Z_NO_FLUSH:Z_FINISH;
+		strm->avail_out = dl;
+		strm->next_out = dst;
+
+		ret = deflate(strm, flush);
+		op->produced += dl - strm->avail_out;
+		while(avail_out == 0 && n){
+			dst = mbuf_dst->next;
+			if(!dst)
+			{
+				ZLIB_LOG_ERR("\nOut of memory for output buffer");
+				op->status = RTE_COMP_OP_STATUS_OUT_OF_SPACE;
+				return;
+			}
+			mbuf_dst = dst;
+			dl = rte_pktmbuf_data_len(dst);
+			strm->avail_out = dl;
+			strm->next_out = dst;
+			ret = deflate(strm, flush);
+			op->produced += dl - strm->avail_out;
+			n -=  stream.avail_in;
+
+		}
+		have = dl - strm.avail_out;
+		dst += have;
+		dl = strm.avail_out;
+		op->consumed += op->src.length - stream.avail_in;
+		if(stream.avail_in)
+			ZLIB_LOG_ERR("\ncomp err");
+
+	}
+	if (unlikely(Z_STREAM_END != ret )) {
 		op->consumed = op->produced = 0;
 		op->status = RTE_COMP_OP_STATUS_ERROR;
 		deflateReset(strm);
 		return;
 	}
-
-	op->produced += rte_pktmbuf_data_len(op->m_dst) - strm->avail_out;
-	op->consumed += op->src.length - strm->avail_in;
 	op->status = RTE_COMP_OP_STATUS_SUCCESS;
 
 	if (ret == Z_STREAM_END)
@@ -108,30 +217,77 @@ process_zlib_deflate(struct rte_comp_op *op, struct zlib_session *sess)
 
 /** Process inflate operation */
 static void
-process_zlib_inflate(struct rte_comp_op *op, struct zlib_session *sess)
+process_zlib_inflate(struct rte_comp_op *op)
 {
 	int ret;
 	unsigned int have;
 	z_stream *strm;
 	unsigned char *src, *dst;
 
-	src = rte_pktmbuf_mtod_offset(op->m_src, unsigned char *,
-							op->src.offset);
-	dst = rte_pktmbuf_mtod_offset(op->m_dst, unsigned char *,
+	for (mbuf_src = op->m_src; mbuf_src != NULL && offset > rte_pktmbuf_data_len(mbuf_src);
+			mbuf_src = mbuf_src->next)
+		op->src.offset -= rte_pktmbuf_data_len(mbuf_src);
+
+	if (mbuf_src == 0)
+		return -1;
+
+	src = rte_pktmbuf_mtod_offset(mbuf_src, uint8_t *, op->src.offset);
+
+	sl = rte_pktmbuf_data_len(mbuf_src) - offset;
+	for (mbuf_dst = op->m_dst; mbuf_dst != NULL && offset > rte_pktmbuf_data_len(mbuf_dst);
+			mbuf_dst = mbuf_dst->next)
+		op->dst.offset -= rte_pktmbuf_data_len(mbuf_dst);
+
+	if (mbuf_dst == 0)
+		return -1;
+
+	dst = rte_pktmbuf_mtod_offset(mbuf_dst, unsigned char *,
 							op->dst.offset);
-	strm = &(sess->strm);
+
+	dl = rte_pktmbuf_data_len(mbuf_dst) - op->dst.offset;
+
 	if (unlikely(!src || !dst || !strm)) {
 		op->status = RTE_COMP_OP_STATUS_INVALID_ARGS;
 		ZLIB_LOG_ERR("\nInvalid source or destination buffers");
 		return;
 	}
 
-	strm->avail_in = op->src.length;
-	strm->next_in = src;
-	strm->avail_out = rte_pktmbuf_data_len(op->m_dst);
-	strm->next_out = dst;
-	ret = inflate(strm, Z_NO_FLUSH);
+	flush = Z_NO_FLUSH;
+	while (n > 0 && ret != Z_STREAM_END)
+	{
+		strm->avail_in = sl;
+		strm->next_in = src;
+		strm->avail_out = dl;
+		strm->next_out = dst;
 
+		ret = inflate(strm, flush);
+		op->produced += dl - strm->avail_out;
+		while(avail_out == 0 && n){
+			dst = mbuf_dst->next;
+			if(!dst)
+			{
+				ZLIB_LOG_ERR("\nOut of memory for output buffer");
+				inflateReset(strm);
+				op->status = RTE_COMP_OP_STATUS_ERROR;
+				return;
+			}
+			mbuf_dst = dst;
+			dl = rte_pktmbuf_data_len(dst);
+			strm->avail_out = dl;
+			strm->next_out = dst;
+			ret = inflate(strm, flush);
+			op->produced += dl - strm->avail_out;
+			n -=  stream.avail_in;
+
+		}
+		have = dl - strm.avail_out;
+		dst += have;
+		dl = strm.avail_out;
+		op->consumed += op->src.length - stream.avail_in;
+		if(stream.avail_in)
+				ZLIB_LOG_ERR("\ncomp err");
+
+	}
 	switch (ret) {
 	case Z_NEED_DICT:
 	case Z_DATA_ERROR:
@@ -142,9 +298,8 @@ process_zlib_inflate(struct rte_comp_op *op, struct zlib_session *sess)
 		return;
 	}
 
-	have = rte_pktmbuf_data_len(op->m_dst) - strm->avail_out;
-	op->produced += have;
-	op->consumed += op->src.length - strm->avail_in;
+	//have = rte_pktmbuf_data_len(op->m_dst) - strm->avail_out;
+//	op->consumed += op->src.length - strm->avail_in;
 
 	op->status = RTE_COMP_OP_STATUS_SUCCESS;
 
@@ -161,7 +316,14 @@ process_zlib_op(struct zlib_qp *qp, struct rte_comp_op *op,
 	if (unlikely(sess == NULL))
 		op->status = RTE_COMP_OP_STATUS_INVALID_SESSION;
 	else
-		sess->func(op, sess);
+	switch (op->priv_xform->type) {
+	case RTE_COMP_COMPRESS:
+		process_zlib_deflate(op);
+		break;
+	case RTE_COMP_DECOMPRESS:
+		process_zlib_inflate(op);
+		break;
+	}
 
 	/* whatever is out of op, put it into completion queue with
 	 * its status
@@ -171,26 +333,21 @@ process_zlib_op(struct zlib_qp *qp, struct rte_comp_op *op,
 
 /** Parse comp xform and set private session parameters */
 int
-zlib_set_session_parameters(struct zlib_session *sess,
+zlib_set_privxform_parameters(struct zlib_priv_xform *priv_xform,
 		const struct rte_comp_xform *xform)
 {
 	int strategy, level, wbits;
-	z_stream *strm;
-	strm = &(sess->strm);
+	z_stream *strm =  &(priv_xform->strm);
 
 	/* allocate deflate state */
 	strm->zalloc = Z_NULL;
 	strm->zfree = Z_NULL;
 	strm->opaque = Z_NULL;
-	strm->avail_in = 0;
-	strm->next_in = Z_NULL;
 
-	memcpy(&(sess->xform), xform, sizeof(struct rte_comp_xform));
-
-	switch (sess->xform.type) {
+	switch (xform->type) {
 	case RTE_COMP_COMPRESS:
 		/** Compression window bits */
-		switch (sess->xform.compress.algo) {
+		switch (xform->compress.algo) {
 		case RTE_COMP_DEFLATE:
 			wbits = -(sess->xform.compress.window_size);
 			break;
@@ -200,7 +357,7 @@ zlib_set_session_parameters(struct zlib_session *sess,
 		}
 
 		/** Compression Level */
-		switch (sess->xform.compress.level) {
+		switch (xform->compress.level) {
 		case RTE_COMP_LEVEL_PMD_DEFAULT:
 			level = Z_DEFAULT_COMPRESSION;
 			break;
@@ -224,7 +381,7 @@ zlib_set_session_parameters(struct zlib_session *sess,
 		}
 
 		/** Compression strategy */
-		switch (sess->xform.compress.deflate.huffman) {
+		switch (xform->compress.deflate.huffman) {
 		case RTE_COMP_DEFAULT:
 			strategy = Z_DEFAULT_STRATEGY;
 			break;
@@ -238,8 +395,7 @@ zlib_set_session_parameters(struct zlib_session *sess,
 			ZLIB_LOG_ERR("Compression strategy not supported\n");
 			return -1;
 		}
-
-		sess->func = process_zlib_deflate;
+		priv_xform->type = xform->type;
 		if (deflateInit2(strm, level,
 					Z_DEFLATED, wbits,
 					DEF_MEM_LEVEL, strategy) != Z_OK)
@@ -247,16 +403,15 @@ zlib_set_session_parameters(struct zlib_session *sess,
 	break;
 	case RTE_COMP_DECOMPRESS:
 		/** window bits */
-		switch (sess->xform.decompress.algo) {
+		switch (xform->decompress.algo) {
 		case RTE_COMP_DEFLATE:
-			wbits = -(sess->xform.decompress.window_size);
+			wbits = -(xform->decompress.window_size);
 			break;
 		default:
 			ZLIB_LOG_ERR("Compression algorithm not supported\n");
 			return -1;
 		}
 
-		sess->func = process_zlib_inflate;
 		if (inflateInit2(strm, wbits) != Z_OK)
 			return -1;
 	break;
@@ -290,16 +445,11 @@ zlib_pmd_enqueue_burst(void *queue_pair,
 		struct rte_comp_op **ops, uint16_t nb_ops)
 {
 	struct zlib_qp *qp = queue_pair;
-	struct zlib_session *sess;
 	int ret, i;
 
 	for (i = 0; i < nb_ops; i++) {
-		sess = (struct zlib_session *)
-				get_session_private_data(
-				ops[i]->session,
-				compressdev_driver_id);
 
-		ret = process_zlib_op(qp, ops[i], sess);
+		ret = process_zlib_op(qp, ops[i]);
 
 		if (unlikely(ret < 0)) {
 			/* increment count if failed to push to completion
@@ -353,6 +503,7 @@ zlib_create(const char *name,
 	dev->enqueue_burst = zlib_pmd_enqueue_burst;
 
 	dev->feature_flags = 0;
+	dev->feature_flags |= RTE_COMP_FF_SHAREABLE_PRIV_XFORM;
 
 	internals = dev->data->dev_private;
 	internals->max_nb_queue_pairs = init_params->max_nb_queue_pairs;
