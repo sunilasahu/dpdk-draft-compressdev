@@ -58,27 +58,21 @@ static int
 zlib_pmd_config(__rte_unused struct rte_compressdev *dev,
 		__rte_unused struct rte_compressdev_config *config)
 {
-	char mp_name[RTE_MEMPOOL_NAMESIZE];
-	struct rte_mempool *stream_mp, pxform_mp;
-	snprintf(mp_name, RTE_MEMPOOL_NAMESIZE,
-			"pxform_mp_%u", config->socket_id);
-	privxform_mp = rte_mempool_create(mp_name,
+	struct rte_mempool *stream_mp, *privxform_mp;
+	privxform_mp = rte_mempool_create("pxform_mp",
 			config->max_private_xforms,
 			sizeof(struct zlib_private_xform),
 			RTE_CACHE_LINE_SIZE,
 			0, NULL, NULL, NULL,
 			NULL, socket_id,
 			0);
-	if (mp == NULL) {
+	if (privxform_mp == NULL) {
 		printf("Cannot create session pool on socket %d\n",
 				socket_id);
 		return -ENOMEM;
 	}
-	snprintf(mp_name, RTE_MEMPOOL_NAMESIZE,
-			"stream_mp_%u", config->socket_id);
 
-
-	stream_mp = rte_mempool_create(mp_name,
+	stream_mp = rte_mempool_create("stream_mp",
 			config->max_nb_streams,
 			sizeof(struct zlib_stream),
 			RTE_CACHE_LINE_SIZE,
@@ -285,7 +279,7 @@ zlib_pmd_private_xform_create(struct rte_compressdev *dev,
 	}
 
 	struct rte_mempool *mp = rte_mempool_lookup("pxform_mp");
-	if (rte_mempool_get(mp, *priv_xform->z_stream)) {
+	if (rte_mempool_get(mp, priv_xform)) {
 		ZLIB_LOG_ERR(
 			"Couldn't get object from session mempool");
 		return -ENOMEM;
@@ -294,10 +288,12 @@ zlib_pmd_private_xform_create(struct rte_compressdev *dev,
     ret = zlib_set_parameters(*priv_xform->z_stream, xform);
     switch(xform->type) {
         case RTE_COMP_COMPRESS:
-            *priv_xform->func = process_zlib_deflate;
+            *priv_xform->comp_op = process_zlib_deflate;
+            *priv_xform->free_op = deflateEnd;
             break;
         case RTE_COMP_DECOMPRESS:
-            *priv_xform->func = process_zlib_inflate;
+            *priv_xform->comp_op = process_zlib_inflate;
+            *priv_xform->free_op = inflateEnd;
             break;
         default:
             return -EINVAL;
@@ -310,6 +306,7 @@ zlib_pmd_private_xform_create(struct rte_compressdev *dev,
 		/* Return session to mempool */
 		rte_mempool_put(mp, *priv_xform);
 	}
+
 	 if(dev->feature_flags & RTE_COMP_FF_SHAREABLE_PRIV_XFORM)
 		 *priv_xform->mode = RTE_COMP_PRIV_XFORM_SHAREABLE;
 	 else
@@ -323,7 +320,7 @@ zlib_pmd_stream_create(struct rte_compressdev *dev,
 				struct rte_comp_xform *xform,
 				struct zlib_stream **stream)
 {
-	int ret;
+	int ret = 0;
 
 	if (xform == NULL) {
 		ZLIB_LOG_ERR("invalid xform struct");
@@ -331,14 +328,25 @@ zlib_pmd_stream_create(struct rte_compressdev *dev,
 	}
 
 	struct rte_mempool *mp = rte_mempool_lookup("stream_mp");
-	if (rte_mempool_get(mp, *stream_mp)) {
+	if (rte_mempool_get(mp, stream)) {
 		ZLIB_LOG_ERR(
 			"Couldn't get object from session mempool");
 		return -ENOMEM;
 	}
 
-	ret = zlib_set_parameters(*stream, *stream_mp->z_stream);
-
+	ret = zlib_set_parameters(*stream->z_stream, xform);
+    switch(xform->type) {
+        case RTE_COMP_COMPRESS:
+            *stream->comp_op = process_zlib_deflate;
+            *stream->free_op = deflateEnd;
+            break;
+        case RTE_COMP_DECOMPRESS:
+            *stream->comp_op = process_zlib_inflate;
+            *stream->free_op = inflateEnd;
+            break;
+        default:
+            return -EINVAL;
+    }
 	if (ret < 0) {
 		ZLIB_LOG_ERR("failed configure session parameters");
 
@@ -350,42 +358,34 @@ zlib_pmd_stream_create(struct rte_compressdev *dev,
 	return 0;
 }
 
-/** Clear the memory of session so it doesn't leave key material behind */
+/** Clear the memory of stream so it doesn't leave key material behind */
 static void
- zlib_pmd_priv_xform_clear(struct rte_compressdev *dev,
-		            struct rte_comp_session *sess)
+zlib_pmd_priv_xform_free(struct rte_compressdev *dev,
+        struct zlib_priv_xform *priv_xform)
 {
-	uint8_t index = dev->driver_id;
-	void *sess_priv = get_session_private_data(sess, index);
+    if (!priv_xform)
+        return;
 
-	zlib_clear_parameters(sess_priv);
-
-	/* Zero out the whole structure */
-	if (sess_priv) {
-		memset(sess_priv, 0, sizeof(struct zlib_session));
-		struct rte_mempool *sess_mp = rte_mempool_from_obj(sess_priv);
-		set_session_private_data(sess, index, NULL);
-		rte_mempool_put(sess_mp, sess_priv);
-	}
+    priv_xform->free_op(&priv_xform->z_stream);
+    /* Zero out the whole structure */
+    memset(priv_xform, 0, sizeof(struct zlib_priv_xform));
+    struct rte_mempool *mp = rte_mempool_from_obj(priv_xform);
+    rte_mempool_put(mp, priv_xform);
 }
 
-/** Clear the memory of session so it doesn't leave key material behind */
+/** Clear the memory of stream so it doesn't leave key material behind */
 static void
-zlib_pmd_stream_clear(struct rte_compressdev *dev,
-		struct rte_comp_session *sess)
+zlib_pmd_stream_free(struct rte_compressdev *dev,
+		        struct zlib_stream *stream)
 {
-	uint8_t index = dev->driver_id;
-	void *sess_priv = get_session_private_data(sess, index);
+    if (!stream)
+        return;
 
-	zlib_clear_parameters(sess_priv);
-
-	/* Zero out the whole structure */
-	if (sess_priv) {
-		memset(sess_priv, 0, sizeof(struct zlib_session));
-		struct rte_mempool *sess_mp = rte_mempool_from_obj(sess_priv);
-		set_session_private_data(sess, index, NULL);
-		rte_mempool_put(sess_mp, sess_priv);
-	}
+    stream->free_op(&stream->z_stream);
+    /* Zero out the whole structure */
+    memset(stream, 0, sizeof(struct zlib_stream);
+    struct rte_mempool *mp = rte_mempool_from_obj(stream);
+    rte_mempool_put(mp, stream);
 }
 
 struct rte_compressdev_ops zlib_pmd_ops = {
@@ -402,7 +402,7 @@ struct rte_compressdev_ops zlib_pmd_ops = {
 		.queue_pair_setup	= zlib_pmd_qp_setup,
 		.queue_pair_release	= zlib_pmd_qp_release,
 		.queue_pair_count	= zlib_pmd_qp_count,
-		
+
 		.private_xform_create   = zlib_pmd_private_xform_create,
 		.private_xform_free   = zlib_pmd_private_xform_free,
 

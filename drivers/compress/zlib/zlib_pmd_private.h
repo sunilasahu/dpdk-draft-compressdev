@@ -82,27 +82,29 @@ typedef void (*comp_func_t)(struct rte_comp_op *op,
 struct zlib_priv_xform {
 	__thread z_stream strm;
 	/**< zlib stream structure */
-	enum rte_comp_xform_type type;
-	/**< Operation (compression/decompression) type */
+	int (*comp_op)(struct rte_comp_op *op, struct rte_mbuf *mbuf_src,
+	            struct rte_mbuf *mbuf_dst, z_stream *strm);
+	/**< Operation (compression/decompression) */
+	void (*free_op)(z_stream *strm);
+	/**< Free Operation (compression/decompression) */
 	enum rte_comp_private_xform_mode mode;
+	/**< Mode of private Xform (sharable/nonsharable) */
 } __rte_cache_aligned;
 
-/** ZLIB private session structure */
+/** ZLIB Stream structure */
 struct zlib_stream {
-	__thread z_stream strm;
+	z_stream strm;
 	/**< zlib stream structure */
-	enum rte_comp_xform_type type;
+	int (*comp_op)(struct rte_comp_op *op, struct rte_mbuf *mbuf_src,
+	            struct rte_mbuf *mbuf_dst, z_stream *strm);
 	/**< Operation (compression/decompression) type */
+	void (*free_op)(z_stream *strm);
+	/**< Free Operation (compression/decompression) */
 } __rte_cache_aligned;
 
-/** Set ZLIB compression session parameters */
+/** Set ZLIB compression private-xform/Stream parameters */
 extern int
-zlib_set_session_parameters(struct zlib_session *sess,
-				const struct rte_comp_xform *xform);
-
-/** Conclude session stream */
-extern void
-zlib_clear_session_parameters(struct zlib_session *sess);
+zlib_xform_set_parameters(const struct rte_comp_xform *xform, z_stream *strm);
 
 /** Device specific operations function pointer structure */
 extern struct rte_compressdev_ops *rte_zlib_pmd_ops;
