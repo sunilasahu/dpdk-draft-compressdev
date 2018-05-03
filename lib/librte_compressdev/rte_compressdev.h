@@ -18,6 +18,7 @@ extern "C" {
 #endif
 
 #include <rte_common.h>
+#include <rte_comp.h>
 
 /**
  * Parameter log base 2 range description.

@@ -58,6 +58,8 @@
 
 struct zlib_private {
 	uint32_t max_nb_queue_pairs;
+	/*TODO:Check if mempool is per dev id*/
+	//char mp_name[RTE_MEMPOOL_NAMESIZE];
 };
 
 struct zlib_qp {
@@ -71,22 +73,27 @@ struct zlib_qp {
 	/**< Unique Queue Pair Name */
 } __rte_cache_aligned;
 
-struct zlib_session;
-
 /* Algorithm handler function prototype
  */
-typedef void (*comp_func_t)(struct rte_comp_op *op,
-				struct zlib_session *sess);
+typedef int (*comp_func_t)(struct rte_comp_op *op, struct rte_mbuf *mbuf_src,
+			struct rte_mbuf *mbuf_dst, z_stream *strm);
+
+typedef int (*comp_free_t)(z_stream *strm);
+
+struct zlib_func_op {
+	comp_func_t comp;
+	/**< Operation (compression/decompression) */
+	comp_free_t free;
+	/**< Free Operation (compression/decompression) */
+};
 
 /** ZLIB private xform structure */
 struct zlib_priv_xform {
-	__thread z_stream strm;
+	//__thread z_stream strm;
+	z_stream strm;
 	/**< zlib stream structure */
-	int (*comp_op)(struct rte_comp_op *op, struct rte_mbuf *mbuf_src,
-	            struct rte_mbuf *mbuf_dst, z_stream *strm);
-	/**< Operation (compression/decompression) */
-	void (*free_op)(z_stream *strm);
-	/**< Free Operation (compression/decompression) */
+	struct zlib_func_op func;
+	/**< zlib operations to be performed as per xform type */
 	enum rte_comp_private_xform_mode mode;
 	/**< Mode of private Xform (sharable/nonsharable) */
 } __rte_cache_aligned;
@@ -95,16 +102,14 @@ struct zlib_priv_xform {
 struct zlib_stream {
 	z_stream strm;
 	/**< zlib stream structure */
-	int (*comp_op)(struct rte_comp_op *op, struct rte_mbuf *mbuf_src,
-	            struct rte_mbuf *mbuf_dst, z_stream *strm);
-	/**< Operation (compression/decompression) type */
-	void (*free_op)(z_stream *strm);
-	/**< Free Operation (compression/decompression) */
+	struct zlib_func_op func;
+	/**< zlib operations to be performed as per xform type */
 } __rte_cache_aligned;
 
 /** Set ZLIB compression private-xform/Stream parameters */
 extern int
-zlib_xform_set_parameters(const struct rte_comp_xform *xform, z_stream *strm);
+zlib_set_stream_parameters(const struct rte_comp_xform *xform, z_stream *strm,
+			struct zlib_func_op *z_func);
 
 /** Device specific operations function pointer structure */
 extern struct rte_compressdev_ops *rte_zlib_pmd_ops;
