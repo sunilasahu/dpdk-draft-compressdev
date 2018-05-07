@@ -18,7 +18,6 @@ EXPERIMENTAL {
 	rte_compressdev_pmd_callback_process;
 	rte_compressdev_pmd_create;
 	rte_compressdev_pmd_destroy;
-	rte_compressdev_pmd_get_dev;
 	rte_compressdev_pmd_get_named_dev;
 	rte_compressdev_pmd_parse_input_args;
 	rte_compressdev_pmd_release_device;

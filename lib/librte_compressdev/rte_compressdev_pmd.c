@@ -4,6 +4,7 @@
 
 #include <rte_malloc.h>
 #include <rte_kvargs.h>
+#include <rte_eal.h>
 
 #include "rte_compressdev_internal.h"
 #include "rte_compressdev_pmd.h"
@@ -46,7 +47,7 @@ rte_compressdev_pmd_parse_uint_arg(const char *key __rte_unused,
 	return 0;
 }
 
-int
+int __rte_experimental
 rte_compressdev_pmd_parse_input_args(
 		struct rte_compressdev_pmd_init_params *params,
 		const char *args)

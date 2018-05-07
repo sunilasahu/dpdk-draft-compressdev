@@ -20,6 +20,8 @@ extern "C" {
 #include <rte_common.h>
 #include <rte_comp.h>
 
+#include "rte_comp.h"
+
 /**
  * Parameter log base 2 range description.
  * Final value will be 2^value.
@@ -281,7 +283,11 @@ void __rte_experimental
 rte_compressdev_stop(uint8_t dev_id);
 
 /**
- * Close an device. The device cannot be restarted!
+ * Close an device.
+ * The memory allocated in the device gets freed.
+ * After calling this function, in order to use
+ * the device again, it is required to
+ * configure the device again.
  *
  * @param dev_id
  *   Compress device identifier
