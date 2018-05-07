@@ -70,8 +70,7 @@ process_zlib_deflate(struct rte_comp_op *op, struct rte_mbuf *mbuf_src, struct r
 	if (op->src.length <= sl) {
 		sl = op->src.length;
 		flush = op->flush_flag;
-	}
-	else {
+	} else {
 		flush = Z_NO_FLUSH;
 	}
 
@@ -83,14 +82,14 @@ process_zlib_deflate(struct rte_comp_op *op, struct rte_mbuf *mbuf_src, struct r
 		strm->avail_out = dl;
 
 		do {
-			if(!strm->avail_out) {
-				/** Read next dst buffer if Output buffer is consumed */
+			if (!strm->avail_out) {
+				/** Read next dst buffer from mbuf list if 
+				 * Output buffer is consumed */
 				mbuf_dst = mbuf_dst->next;
-				if(!mbuf_dst) {
+				if (!mbuf_dst) {
 					ZLIB_LOG_ERR("Ran out of Destination buffers");
 					return Z_BUF_ERROR;
-				}
-				else{
+				} else {
 					dst = rte_pktmbuf_mtod(mbuf_dst, uint8_t *);
 					dl = rte_pktmbuf_data_len(mbuf_dst);
 				}
@@ -103,7 +102,8 @@ process_zlib_deflate(struct rte_comp_op *op, struct rte_mbuf *mbuf_src, struct r
 			op->consumed += sl - strm->avail_in;
 		} while(strm->avail_in && (strm->avail_out == 0));
 
-		/** Compress till the end of compressed blocks provided or till Z_FINISH */
+		/** Compress till the end of compressed blocks provided 
+		 * or till Z_FINISH */
 		if (flush == Z_FINISH && op->consumed == op->src.length)
 			break;
 		if (unlikely(strm->avail_in))
@@ -124,7 +124,7 @@ process_zlib_deflate(struct rte_comp_op *op, struct rte_mbuf *mbuf_src, struct r
 		 * Update flush with value provided by app for last block,
 		 * For stateless flush should be always Z_FINISH */
 
-		if((op->src.length - op->consumed) <= sl)
+		if ((op->src.length - op->consumed) <= sl)
 		{
 			sl = (op->src.length - op->consumed);
 			flush = op->flush_flag;
@@ -170,10 +170,10 @@ process_zlib_inflate(struct rte_comp_op *op, struct rte_mbuf *mbuf_src, struct r
 		strm->next_out = dst;
 
 		do {
-			if(!strm->avail_out) {
+			if (!strm->avail_out) {
 				/** Read next dst buffer if Output buffer is consumed */
 				mbuf_dst = mbuf_dst->next;
-				if(!mbuf_dst) {
+				if (!mbuf_dst) {
 					ZLIB_LOG_ERR("\nOut of memory for output buffer");
 					return Z_BUF_ERROR;
 				}
