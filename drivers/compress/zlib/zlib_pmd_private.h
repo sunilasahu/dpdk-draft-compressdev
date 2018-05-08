@@ -41,7 +41,7 @@
 #define COMPRESSDEV_NAME_ZLIB_PMD	compress_zlib
 /**< ZLIB PMD device name */
 
-#define ZLIB_PMD_MAX_NB_QUEUE_PAIRS	8
+#define ZLIB_PMD_MAX_NB_QUEUE_PAIRS	0
 /**< ZLIB PMD specified queue pairs */
 
 #define DEF_MEM_LEVEL			8
@@ -72,8 +72,7 @@ struct zlib_qp {
 	/**< Unique Queue Pair Name */
 } __rte_cache_aligned;
 
-/* Algorithm handler function prototype
- */
+/* Algorithm handler function prototype */
 typedef void (*comp_func_t)(struct rte_comp_op *op, z_stream *strm);
 
 typedef int (*comp_free_t)(z_stream *strm);
@@ -90,7 +89,6 @@ struct zlib_stream {
 
 /** ZLIB private xform structure */
 struct zlib_priv_xform {
-	//__thread z_stream strm;
     struct zlib_stream stream;    
 } __rte_cache_aligned;
 
