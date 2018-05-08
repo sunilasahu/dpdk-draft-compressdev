@@ -1,33 +1,5 @@
-/*-
- *   BSD LICENSE
- *
- *   Copyright(c) 2016-2017 Intel Corporation. All rights reserved.
- *
- *   Redistribution and use in source and binary forms, with or without
- *   modification, are permitted provided that the following conditions
- *   are met:
- *
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in
- *       the documentation and/or other materials provided with the
- *       distribution.
- *     * Neither the name of Intel Corporation nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
- *
- *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/* SPDX-License-Identifier: BSD-3-Clause
+ * Copyright(c) 2017-2018 Cavium Networks
  */
 
 #include <rte_common.h>
@@ -59,8 +31,8 @@ process_zlib_deflate(struct rte_comp_op *op, z_stream *strm)
 	int ret, flush;
 	uint8_t *src, *dst;
 	uint32_t sl, dl, have;
-    struct rte_mbuf *mbuf_src = op->m_src;
-    struct rte_mbuf *mbuf_dst = op->m_dst;
+   	struct rte_mbuf *mbuf_src = op->m_src;
+    	struct rte_mbuf *mbuf_dst = op->m_dst;
 
 	src = rte_pktmbuf_mtod_offset(mbuf_src, uint8_t *, op->src.offset);
 
@@ -80,11 +52,14 @@ process_zlib_deflate(struct rte_comp_op *op, z_stream *strm)
 		sl = op->src.length;
 		flush = op->flush_flag;
 	} else {
+		/* if there're more than one mbufs in input,
+		 * process intermediate with NO_FLUSH
+		 */
 		flush = Z_NO_FLUSH;
 	}
 
 	do {
-		/** Update z_stream with the inputs provided by application */
+		/* Update z_stream with the inputs provided by application */
 		strm->next_in = src;
 		strm->avail_in = sl;
 
@@ -92,21 +67,21 @@ process_zlib_deflate(struct rte_comp_op *op, z_stream *strm)
 			strm->avail_out = dl;
 			strm->next_out = dst;
 			ret = deflate(strm, flush);
-            if(unlikely(ret == Z_STREAM_ERROR))
-            {
-                op->status =  RTE_COMP_OP_STATUS_ERROR;
-                break;
-            }
-			/** Update op stats */
+		    	if(unlikely(ret == Z_STREAM_ERROR)) {
+				op->status =  RTE_COMP_OP_STATUS_ERROR;
+				/* error return, do not process further */
+				return;
+		    	}
+			/* Update op stats */
 			op->produced += dl - strm->avail_out;
 			op->consumed += sl - strm->avail_in;
 		} while((strm->avail_out == 0) && COMPUTE_DST_BUF(mbuf_dst, dst, dl, ret));
         
 		/** Compress till the end of compressed blocks provided 
 		 * or till Z_FINISH */
-        if (op->status)
-            return;
-        else if (ret == Z_STREAM_END || (op->consumed == op->src.length))
+        	if (op->status)
+            		return;
+		if (ret == Z_STREAM_END || (op->consumed == op->src.length))
 			break;
 
 		/** Update last output buffer with respect to availed space */
@@ -139,8 +114,8 @@ process_zlib_inflate(struct rte_comp_op *op, z_stream *strm)
 	int ret, flush;
 	uint8_t *src, *dst;
 	uint32_t sl, dl, have;
-    struct rte_mbuf *mbuf_src = op->m_src;
-    struct rte_mbuf *mbuf_dst = op->m_dst;
+    	struct rte_mbuf *mbuf_src = op->m_src;
+    	struct rte_mbuf *mbuf_dst = op->m_dst;
 
 	src = rte_pktmbuf_mtod_offset(mbuf_src, uint8_t *, op->src.offset);
 
@@ -162,6 +137,8 @@ process_zlib_inflate(struct rte_comp_op *op, z_stream *strm)
 
 	/** Ignoring flush value provided from application for decompression */
 	flush = Z_NO_FLUSH;
+	/* initialize status to SUCCESS */
+	op->status = RTE_COMP_OP_STATUS_SUCCESS;
 	do {
 		/** Update z_stream with the inputs provided by application */
 		strm->avail_in = sl;
@@ -170,30 +147,28 @@ process_zlib_inflate(struct rte_comp_op *op, z_stream *strm)
 			strm->avail_out = dl;
 			strm->next_out = dst;
 			ret = inflate(strm, flush);
-            if(unlikely(ret == Z_STREAM_ERROR))
-            {
-                op->status =  RTE_COMP_OP_STATUS_ERROR;
-                break;
-            }
-           switch (ret) {
-            case Z_NEED_DICT:
-                ret = Z_DATA_ERROR;     /* and fall through */
-            case Z_DATA_ERROR:
-            case Z_MEM_ERROR:
-            case Z_STREAM_ERROR:
-                op->status = RTE_COMP_OP_STATUS_ERROR;
-                break;
-            }
+           
+		   	switch (ret) {
+		        case Z_NEED_DICT:
+				ret = Z_DATA_ERROR;     /* and fall through */
+		    	case Z_DATA_ERROR:
+		    	case Z_MEM_ERROR:
+		    	case Z_STREAM_ERROR:
+				op->status = RTE_COMP_OP_STATUS_ERROR;
+				return;
+		    	}
 			/** Update op stats */
 			op->produced += dl - strm->avail_out;
 			op->consumed += sl - strm->avail_in;
 		} while((strm->avail_out == 0) && COMPUTE_DST_BUF(mbuf_dst, dst, dl, ret));
         
+		/* if op->status not SUCCESS, return */
+		if (op->status != RTE_COMP_STATUS_SUCCESS)
+			return;
+		
 		/** Compress till the end of compressed blocks provided 
 		 * or till Z_STREAM_END */
-        if (op->status)
-            return;
-        else if (ret == Z_STREAM_END || (op->consumed == op->src.length))
+        	if (ret == Z_STREAM_END || (op->consumed == op->src.length))
 			break;
 
 		/** Adjust previous output buffer with respect to avail_out */
@@ -204,7 +179,7 @@ process_zlib_inflate(struct rte_comp_op *op, z_stream *strm)
 		mbuf_src = mbuf_src->next;
 		src = rte_pktmbuf_mtod(mbuf_src, uint8_t *);
 		sl = rte_pktmbuf_data_len(mbuf_src);
-		sl = (op->src.length - op->consumed) < sl ? (op->src.length - op->consumed) : sl;
+		sl = (op->src.length - op->consumed) <= sl ? (op->src.length - op->consumed) : sl;
 
 	} while (1);
 
@@ -226,7 +201,7 @@ process_zlib_op(struct zlib_qp *qp, struct rte_comp_op *op)
     if (op->op_type == RTE_COMP_OP_STATELESS)
         stream = &((struct zlib_priv_xform *)op->private_xform)->stream;
     else if(op->op_type == RTE_COMP_OP_STATEFUL)
-        stream = op->stream;
+        stream = (struct zlib_stream *)op->stream;
     else {
         op->status = RTE_COMP_OP_STATUS_INVALID_ARGS;
 		ZLIB_LOG_ERR("\nInvalid operation type");
@@ -340,24 +315,20 @@ zlib_pmd_enqueue_burst(void *queue_pair,
 {
 	struct zlib_qp *qp = queue_pair;
 	int ret, i;
-
+	int enqd = 0;
 	for (i = 0; i < nb_ops; i++) {
-
 		ret = process_zlib_op(qp, ops[i]);
-
 		if (unlikely(ret < 0)) {
 			/* increment count if failed to push to completion
 			 * queue
 			 */
 			qp->qp_stats.enqueue_err_count++;
-        } else {
-            qp->qp_stats.enqueued_count ++;
-        }
-
+        	} else {
+            	qp->qp_stats.enqueued_count ++;
+		enqd++;
+        	}
 	}
-
-
-	return nb_ops;
+	return enqd;
 }
 
 static uint16_t
@@ -400,7 +371,10 @@ zlib_create(const char *name,
 	dev->enqueue_burst = zlib_pmd_enqueue_burst;
 
 	dev->feature_flags = 0;
-	dev->feature_flags |= RTE_COMP_FF_SHAREABLE_PRIV_XFORM;
+	dev->feature_flags |= RTE_COMP_FF_SHAREABLE_PRIV_XFORM |
+			      RTE_COMP_FF_NONCOMPRESSED_BLOCKS |
+			      RTE_COMP_FF_ADLER32_CHECKSUM |
+			      RTE_COMP_FF_MBUF_SCATTER_GATHER;
 
 	internals = dev->data->dev_private;
 	internals->max_nb_queue_pairs = ZLIB_PMD_MAX_NB_QUEUE_PAIRS;
