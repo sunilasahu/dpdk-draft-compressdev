@@ -17,14 +17,15 @@
 #include "zlib_pmd_private.h"
 
 static uint8_t compressdev_driver_id;
-#define COMPUTE_DST_BUF(mbuf, dst, dlen, ret) \
-        ((mbuf = mbuf->next) ? (dst = rte_pktmbuf_mtod(mbuf, uint8_t *)),dlen =rte_pktmbuf_data_len(mbuf) : \
+
+/** compute the next mbuf in list and assign dst buffer and dlen,
+ * set op->status to appropriate flag if we run out of mbuf */
+#define COMPUTE_DST_BUF(mbuf, dst, dlen) \
+        ((mbuf = mbuf->next) ? (dst = rte_pktmbuf_mtod(mbuf, uint8_t *)), dlen =rte_pktmbuf_data_len(mbuf) : \
         !(op->status = ((op->op_type == RTE_COMP_OP_STATELESS) ?\
         RTE_COMP_OP_STATUS_OUT_OF_SPACE_TERMINATED : \
         RTE_COMP_OP_STATUS_OUT_OF_SPACE_RECOVERABLE) ) )
-#if 0
-    ret = (mbuf = mbuf->next) ? (dst = rte_pktmbuf_mtod(mbuf, uint8_t *) && dlen = rte_pktmbuf_data_len(mbuf)) : 
-#endif                      
+
 static void 
 process_zlib_deflate(struct rte_comp_op *op, z_stream *strm)
 {
@@ -75,13 +76,13 @@ process_zlib_deflate(struct rte_comp_op *op, z_stream *strm)
 			/* Update op stats */
 			op->produced += dl - strm->avail_out;
 			op->consumed += sl - strm->avail_in;
-		} while((strm->avail_out == 0) && COMPUTE_DST_BUF(mbuf_dst, dst, dl, ret));
+            /** Break if all inputs are consumed or dst mbuf gets over */ 
+		} while((strm->avail_out == 0) && COMPUTE_DST_BUF(mbuf_dst, dst, dl));
         
 		/** Compress till the end of compressed blocks provided 
-		 * or till Z_FINISH */
-        	if (op->status)
-            		return;
-		if (ret == Z_STREAM_END || (op->consumed == op->src.length))
+		 * or till Z_FINISH 
+         * Exit if op->status is Error. */
+        if ((op->status > RTE_COMP_OP_STATUS_NOT_PROCESSED) || ret == Z_STREAM_END || op->consumed == op->src.length)
 			break;
 
 		/** Update last output buffer with respect to availed space */
@@ -147,28 +148,29 @@ process_zlib_inflate(struct rte_comp_op *op, z_stream *strm)
 			strm->avail_out = dl;
 			strm->next_out = dst;
 			ret = inflate(strm, flush);
-           
-		   	switch (ret) {
-		        case Z_NEED_DICT:
-				ret = Z_DATA_ERROR;     /* and fall through */
-		    	case Z_DATA_ERROR:
-		    	case Z_MEM_ERROR:
-		    	case Z_STREAM_ERROR:
-				op->status = RTE_COMP_OP_STATUS_ERROR;
-				return;
-		    	}
+
+           switch (ret) {
+            case Z_NEED_DICT:
+                ret = Z_DATA_ERROR;     /* and fall through */
+            case Z_DATA_ERROR:
+            case Z_MEM_ERROR:
+            case Z_STREAM_ERROR:
+                op->status = RTE_COMP_OP_STATUS_ERROR;
+                break;
+            }
 			/** Update op stats */
 			op->produced += dl - strm->avail_out;
 			op->consumed += sl - strm->avail_in;
-		} while((strm->avail_out == 0) && COMPUTE_DST_BUF(mbuf_dst, dst, dl, ret));
+		} while ((strm->avail_out == 0) && COMPUTE_DST_BUF(mbuf_dst, dst, dl));
         
 		/* if op->status not SUCCESS, return */
 		if (op->status != RTE_COMP_STATUS_SUCCESS)
 			return;
 		
 		/** Compress till the end of compressed blocks provided 
-		 * or till Z_STREAM_END */
-        	if (ret == Z_STREAM_END || (op->consumed == op->src.length))
+		 * or till Z_STREAM_END.
+         * Exit if op->status is Error. */
+        if ((op->status > RTE_COMP_OP_STATUS_NOT_PROCESSED) || ret == Z_STREAM_END || op->consumed == op->src.length)
 			break;
 
 		/** Adjust previous output buffer with respect to avail_out */
