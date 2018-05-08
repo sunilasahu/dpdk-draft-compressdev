@@ -1,35 +1,6 @@
-/*-
- *   BSD LICENSE
- *
- *   Copyright(c) 2018 Cavium Networks. All rights reserved.
- *
- *   Redistribution and use in source and binary forms, with or without
- *   modification, are permitted provided that the following conditions
- *   are met:
- *
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in
- *       the documentation and/or other materials provided with the
- *       distribution.
- *     * Neither the name of Intel Corporation nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
- *
- *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/* SPDX-License-Identifier: BSD-3-Clause
+ * Copyright(c) 2017-2018 Cavium Networks
  */
-
 #include <string.h>
 
 #include <rte_common.h>
@@ -41,7 +12,10 @@
 static const struct rte_compressdev_capabilities zlib_pmd_capabilities[] = {
 	{   /* Deflate */
 		.algo = RTE_COMP_ALGO_DEFLATE,
-		.comp_feature_flags = RTE_COMP_PRIV_XFORM_SHAREABLE,
+		.comp_feature_flags = RTE_COMP_PRIV_XFORM_SHAREABLE |
+				      RTE_COMP_FF_MBUF_SCATTER_GATHER |
+				      RTE_COMP_FF_ADLER32_CHECKSUM |
+				      RTE_COMP_FF_NONCOMPRESSED_BLOCKS,
 		.window_size = {
 			.min = 8,
 			.max = 15,
@@ -55,13 +29,13 @@ static const struct rte_compressdev_capabilities zlib_pmd_capabilities[] = {
 
 /** Configure device */
 static int
-zlib_pmd_config(__rte_unused struct rte_compressdev *dev,
-		__rte_unused struct rte_compressdev_config *config)
+zlib_pmd_config(struct rte_compressdev *dev,
+		struct rte_compressdev_config *config)
 {
 	struct rte_mempool *mp;
 
 	struct zlib_private *internals = dev->data->dev_private;
-    snprintf(internals->mp_name, RTE_MEMPOOL_NAMESIZE,
+    	snprintf(internals->mp_name, RTE_MEMPOOL_NAMESIZE,
 					"stream_mp_%u", dev->data->dev_id);
 
 	mp = rte_mempool_create(internals->mp_name,
@@ -210,28 +184,31 @@ zlib_pmd_qp_setup(struct rte_compressdev *dev, uint16_t qp_id,
 {
 	struct zlib_qp *qp = NULL;
 
-	/* Free memory prior to re-allocation if needed. */
-	if (dev->data->queue_pairs[qp_id] != NULL)
-		zlib_pmd_qp_release(dev, qp_id);
+	/* check if there's existing and can be reused? */
+	if (dev->data->queue_pairs[qp_id] != NULL) {
+		qp->processed_pkts = zlib_pmd_qp_create_processed_pkts_ring(qp,
+			max_inflight_ops, socket_id);
+		/* if failed to create ring, return failure, else reuse existing qp */
+		if (qp->processed_pkts == NULL)
+			return -1;	
+		else 
+			return 0;/* since, device is reusing existin qp,
+				   qp->stats might include stats for prev run,
+				   app may choose to reset them
+				   */
+	}
 
 	/* Allocate the queue pair data structure. */
 	qp = rte_zmalloc_socket("ZLIB PMD Queue Pair", sizeof(*qp),
 					RTE_CACHE_LINE_SIZE, socket_id);
 	if (qp == NULL)
 		return (-ENOMEM);
-
-	qp->id = qp_id;
-	dev->data->queue_pairs[qp_id] = qp;
-
 	if (zlib_pmd_qp_set_unique_name(dev, qp))
 		goto qp_setup_cleanup;
-
-	qp->processed_pkts = zlib_pmd_qp_create_processed_pkts_ring(qp,
-			max_inflight_ops, socket_id);
-	if (qp->processed_pkts == NULL)
-		goto qp_setup_cleanup;
-
+	dev->data->queue_pairs[qp_id] = qp;
+	qp->id = qp_id;
 	memset(&qp->qp_stats, 0, sizeof(qp->qp_stats));
+
 	return 0;
 
 qp_setup_cleanup:
