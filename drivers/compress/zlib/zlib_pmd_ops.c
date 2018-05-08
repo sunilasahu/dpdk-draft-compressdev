@@ -60,29 +60,19 @@ zlib_pmd_config(__rte_unused struct rte_compressdev *dev,
 {
 	struct rte_mempool *mp;
 
-	mp = rte_mempool_create("pxform_mp",
-			config->max_nb_priv_xforms,
-			sizeof(struct zlib_priv_xform),
+	struct zlib_private *internals = dev->data->dev_private;
+    snprintf(internals->mp_name, RTE_MEMPOOL_NAMESIZE,
+					"stream_mp_%u", dev->data->dev_id);
+
+	mp = rte_mempool_create(internals->mp_name,
+			config->max_nb_priv_xforms + config->max_nb_streams,
+			sizeof(struct zlib_priv_xform), 
 			RTE_CACHE_LINE_SIZE,
 			0, NULL, NULL, NULL,
 			NULL, config->socket_id,
 			0);
 	if (mp == NULL) {
 		printf("Cannot create private xform pool on socket %d\n",
-				config->socket_id);
-		return -ENOMEM;
-	}
-
-	mp = rte_mempool_create("stream_mp",
-			config->max_nb_streams,
-			sizeof(struct zlib_stream),
-			RTE_CACHE_LINE_SIZE,
-			0, NULL, NULL, NULL,
-			NULL, config->socket_id,
-			0);
-
-	if (mp == NULL) {
-		printf("Cannot create stream pool on socket %d\n",
 				config->socket_id);
 		return -ENOMEM;
 	}
@@ -252,70 +242,30 @@ qp_setup_cleanup:
 	return -1;
 }
 
-/** Configure private xform */
-static int
-zlib_pmd_private_xform_create(__rte_unused struct rte_compressdev *dev,
-		const struct rte_comp_xform *xform,
-		void **private_xform)
-{
-	struct zlib_priv_xform *priv_xform; 
-	int ret = 0;
-
-	if (xform == NULL) {
-		ZLIB_LOG_ERR("invalid xform struct");
-		return -EINVAL;
-	}
-	struct rte_mempool *mp = rte_mempool_lookup("pxform_mp");
-	if (rte_mempool_get(mp, private_xform)) {
-		ZLIB_LOG_ERR(
-				"Couldn't get object from session mempool");
-		return -ENOMEM;
-	}
-	priv_xform = *((struct zlib_priv_xform **)private_xform);
-
-	ret = zlib_set_stream_parameters(xform, &priv_xform->strm, &priv_xform->func);
-
-	if (ret < 0) {
-		ZLIB_LOG_ERR("failed configure session parameters");
-
-		memset(priv_xform, 0, sizeof(struct zlib_priv_xform));
-		/* Return session to mempool */
-		rte_mempool_put(mp, priv_xform);
-	}
-#if 0
-	if(dev->feature_flags & RTE_COMP_FF_SHAREABLE_PRIV_XFORM)
-		(*priv_xform)->mode = RTE_COMP_PRIV_XFORM_SHAREABLE;
-	else
-		(*priv_xform)->mode = RTE_COMP_PRIV_XFORM_NOT_SHAREABLE;
-#endif
-	return ret;
-}
-
 /** Configure stream */
 static int
 zlib_pmd_stream_create(__rte_unused struct rte_compressdev *dev,
 		const struct rte_comp_xform *xform,
 		void **zstream)
 {
-	struct zlib_stream *stream;
 	int ret = 0;
+    struct zlib_stream *stream;
+	struct zlib_private *internals = dev->data->dev_private;
 
 	if (xform == NULL) {
 		ZLIB_LOG_ERR("invalid xform struct");
 		return -EINVAL;
 	}
 
-	struct rte_mempool *mp = rte_mempool_lookup("stream_mp");
+	struct rte_mempool *mp = rte_mempool_lookup(internals->mp_name);
 	if (rte_mempool_get(mp, (void **)zstream)) {
 		ZLIB_LOG_ERR(
 				"Couldn't get object from session mempool");
 		return -ENOMEM;
 	}
+    stream = *((struct zlib_stream **)zstream); 
 
-	stream = *((struct zlib_stream **)zstream); 
-
-	ret = zlib_set_stream_parameters(xform, &stream->strm,
-			&stream->func);
+	ret = zlib_set_stream_parameters(xform, stream);
 
 	if (ret < 0) {
 		ZLIB_LOG_ERR("failed configure session parameters");
@@ -328,22 +278,16 @@ zlib_pmd_stream_create(__rte_unused struct rte_compressdev *dev,
 	return 0;
 }
 
-/** Clear the memory of stream so it doesn't leave key material behind */
+/** Configure private xform */
 static int
-zlib_pmd_private_xform_free(__rte_unused struct rte_compressdev *dev,
-		void *private_xform)
+zlib_pmd_private_xform_create(__rte_unused struct rte_compressdev *dev,
+		const struct rte_comp_xform *xform,
+		void **private_xform)
 {
-	struct zlib_priv_xform *priv_xform = private_xform; 
-	if (!priv_xform)
-		return -EINVAL;
+	int ret = 0;
 
-	priv_xform->func.free(&priv_xform->strm);
-	/* Zero out the whole structure */
-	memset(priv_xform, 0, sizeof(struct zlib_priv_xform));
-	struct rte_mempool *mp = rte_mempool_from_obj(priv_xform);
-	rte_mempool_put(mp, priv_xform);
-
-	return 0;
+    ret = zlib_pmd_stream_create(dev, xform, private_xform);
+	return ret;
 }
 
 /** Clear the memory of stream so it doesn't leave key material behind */
@@ -355,12 +299,22 @@ zlib_pmd_stream_free(__rte_unused struct rte_compressdev *dev,
 	if (!stream)
 		return -EINVAL;
 
-	stream->func.free(&stream->strm);
+	stream->free(&stream->strm);
 	/* Zero out the whole structure */
 	memset(stream, 0, sizeof(struct zlib_stream));
 	struct rte_mempool *mp = rte_mempool_from_obj(stream);
 	rte_mempool_put(mp, stream);
 
+	return 0;
+}
+
+/** Clear the memory of stream so it doesn't leave key material behind */
+static int
+zlib_pmd_private_xform_free(__rte_unused struct rte_compressdev *dev,
+		void *private_xform)
+{
+    zlib_pmd_stream_free(dev, private_xform);
+	
 	return 0;
 }
 
@@ -384,6 +338,6 @@ struct rte_compressdev_ops zlib_pmd_ops = {
 
 		.stream_create	= zlib_pmd_stream_create,
 		.stream_free	= zlib_pmd_stream_free
-
+};
 
 struct rte_compressdev_ops *rte_zlib_pmd_ops = &zlib_pmd_ops;
