@@ -63,20 +63,17 @@ zlib_pmd_config(__rte_unused struct rte_compressdev *dev,
 	struct zlib_private *internals = dev->data->dev_private;
     snprintf(internals->mp_name, RTE_MEMPOOL_NAMESIZE,
 					"stream_mp_%u", dev->data->dev_id);
-
 	mp = rte_mempool_create(internals->mp_name,
 			config->max_nb_priv_xforms + config->max_nb_streams,
 			sizeof(struct zlib_priv_xform), 
-			RTE_CACHE_LINE_SIZE,
-			0, NULL, NULL, NULL,
+			0, 0, NULL, NULL, NULL,
 			NULL, config->socket_id,
 			0);
 	if (mp == NULL) {
-		printf("Cannot create private xform pool on socket %d\n",
+		ZLIB_LOG_ERR("Cannot create private xform pool on socket %d\n",
 				config->socket_id);
 		return -ENOMEM;
 	}
-
 	return 0;
 }
 
@@ -92,6 +89,9 @@ static void
 zlib_pmd_stop(__rte_unused struct rte_compressdev *dev)
 {
 
+	struct zlib_private *internals = dev->data->dev_private;
+	struct rte_mempool *mp = rte_mempool_lookup(internals->mp_name);
+	rte_mempool_free(mp); 
 }
 
 /** Close device */

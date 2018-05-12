@@ -32,6 +32,8 @@
 #define NUM_MAX_INFLIGHT_OPS 128
 #define CACHE_SIZE 0
 
+#define DIV_CEIL(a, b)  ((a % b) ? ((a / b) + 1) : (a / b))
+
 const char *
 huffman_type_strings[] = {
 	[RTE_COMP_HUFFMAN_DEFAULT]	= "PMD default",
@@ -117,6 +119,7 @@ testsuite_setup(void)
 			rte_malloc(NULL, sizeof(struct rte_comp_xform), 0);
 
 	/* Initializes default values for compress/decompress xforms */
+	ts_params->def_comp_xform->next = NULL;
 	ts_params->def_comp_xform->type = RTE_COMP_COMPRESS;
 	ts_params->def_comp_xform->compress.algo = RTE_COMP_ALGO_DEFLATE,
 	ts_params->def_comp_xform->compress.deflate.huffman =
@@ -125,6 +128,7 @@ testsuite_setup(void)
 	ts_params->def_comp_xform->compress.chksum = RTE_COMP_CHECKSUM_NONE;
 	ts_params->def_comp_xform->compress.window_size = DEFAULT_WINDOW_SIZE;
 
+	ts_params->def_decomp_xform->next = NULL;
 	ts_params->def_decomp_xform->type = RTE_COMP_DECOMPRESS;
 	ts_params->def_decomp_xform->decompress.algo = RTE_COMP_ALGO_DEFLATE,
 	ts_params->def_decomp_xform->decompress.chksum = RTE_COMP_CHECKSUM_NONE;
@@ -172,9 +176,6 @@ static void
 generic_ut_teardown(void)
 {
 	rte_compressdev_stop(0);
-	if (rte_compressdev_close(0) < 0)
-		RTE_LOG(ERR, USER1, "Device could not be closed\n");
-
 }
 
 static int

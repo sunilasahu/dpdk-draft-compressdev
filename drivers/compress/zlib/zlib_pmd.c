@@ -29,7 +29,7 @@ static uint8_t compressdev_driver_id;
 static void 
 process_zlib_deflate(struct rte_comp_op *op, z_stream *strm)
 {
-	int ret, flush;
+	int ret, flush, fin_flush;
 	uint8_t *src, *dst;
 	uint32_t sl, dl, have;
 	struct rte_mbuf *mbuf_src = op->m_src;
@@ -49,9 +49,26 @@ process_zlib_deflate(struct rte_comp_op *op, z_stream *strm)
 		ZLIB_LOG_ERR("\nInvalid source or destination buffers");
 		return;
 	}
+    switch (op->flush_flag) {
+	case RTE_COMP_FLUSH_NONE:
+		fin_flush = Z_NO_FLUSH;
+		break;
+	case RTE_COMP_FLUSH_SYNC:
+		fin_flush = Z_SYNC_FLUSH;
+		break;
+	case RTE_COMP_FLUSH_FULL:
+		fin_flush = Z_FULL_FLUSH;
+		break;
+	case RTE_COMP_FLUSH_FINAL:
+		fin_flush = Z_FINISH;
+		break;
+	default:
+		op->status = RTE_COMP_OP_STATUS_ERROR;
+        goto def_end;
+	}
 	if (op->src.length <= sl) {
 		sl = op->src.length;
-		flush = op->flush_flag;
+		flush = fin_flush;
 	} else {
 		/* if there're more than one mbufs in input,
 		 * process intermediate with NO_FLUSH
@@ -73,19 +90,19 @@ process_zlib_deflate(struct rte_comp_op *op, z_stream *strm)
 			if(unlikely(ret == Z_STREAM_ERROR)) {
 				/* error return, do not process further */
 				op->status =  RTE_COMP_OP_STATUS_ERROR;
-				return;
+                goto def_end;
 			}
 			/* Update op stats */
 			op->produced += dl - strm->avail_out;
 			op->consumed += sl - strm->avail_in;
 		/* Break if all inputs are consumed or dst mbuf gets over */ 
-		} while((strm->avail_out == 0) && COMPUTE_DST_BUF(mbuf_dst, dst, dl));
+		} while(!(ret == Z_STREAM_END) && (strm->avail_out == 0) && COMPUTE_DST_BUF(mbuf_dst, dst, dl));
         
 		/** Compress till the end of compressed blocks provided 
 		 * or till Z_FINISH 
 		 * Exit if op->status is not SUCCESS. */
-		if ((op->status != RTE_COMP_STATUS_SUCCESS) || ret == Z_STREAM_END || op->consumed == op->src.length)
-			return;
+		if ((op->status != RTE_COMP_OP_STATUS_SUCCESS) || ret == Z_STREAM_END || op->consumed == op->src.length)
+            goto def_end;
 
 		/** Update last output buffer with respect to availed space */
 		have = dl - strm->avail_out;
@@ -103,10 +120,13 @@ process_zlib_deflate(struct rte_comp_op *op, z_stream *strm)
 		if ((op->src.length - op->consumed) <= sl)
 		{
 			sl = (op->src.length - op->consumed);
-			flush = op->flush_flag;
+			flush = fin_flush;
 		}
 
 	} while(1);
+def_end:
+	if (op->op_type == RTE_COMP_OP_STATELESS)
+        deflateReset(strm);
 
 	return;
 }
@@ -114,7 +134,7 @@ process_zlib_deflate(struct rte_comp_op *op, z_stream *strm)
 static void
 process_zlib_inflate(struct rte_comp_op *op, z_stream *strm)
 {
-	int ret, flush;
+	int ret, flush, fin_flush;
 	uint8_t *src, *dst;
 	uint32_t sl, dl, have;
 	struct rte_mbuf *mbuf_src = op->m_src;
@@ -134,7 +154,6 @@ process_zlib_inflate(struct rte_comp_op *op, z_stream *strm)
 		ZLIB_LOG_ERR("\nInvalid source or destination buffers");
 		return;
 	}
-
 	if (op->src.length <= sl)
 		sl = op->src.length;
 
@@ -146,10 +165,11 @@ process_zlib_inflate(struct rte_comp_op *op, z_stream *strm)
 	do {
 		/** Update z_stream with the inputs provided by application */
 		strm->avail_in = sl;
-		strm->avail_out = dl;
+		strm->next_in = src;
 		do {
 			strm->avail_out = dl;
 			strm->next_out = dst;
+
 			ret = inflate(strm, flush);
 
 			switch (ret) {
@@ -159,19 +179,22 @@ process_zlib_inflate(struct rte_comp_op *op, z_stream *strm)
 				case Z_MEM_ERROR:
 				case Z_STREAM_ERROR:
 					op->status = RTE_COMP_OP_STATUS_ERROR;
-					break;
+                    goto inf_end;
+                default:
+                    op->produced += dl - strm->avail_out;
+                    op->consumed += sl - strm->avail_in;
+
 			}
 			/** Update op stats */
-			op->produced += dl - strm->avail_out;
-			op->consumed += sl - strm->avail_in;
-		} while ((strm->avail_out == 0) && COMPUTE_DST_BUF(mbuf_dst, dst, dl));
+		} while ( !(ret == Z_STREAM_END) && (strm->avail_out == 0) && COMPUTE_DST_BUF(mbuf_dst, dst, dl));
         
 		/** Compress till the end of compressed blocks provided 
 		 * or till Z_STREAM_END.
 		 * Exit if op->status is not SUCCESS. */
-		if ((op->status != RTE_COMP_STATUS_SUCCESS) || ret == Z_STREAM_END || op->consumed == op->src.length)
-			return;
-
+		if ((op->status != RTE_COMP_OP_STATUS_SUCCESS) || ret == Z_STREAM_END || op->consumed == op->src.length)
+        {
+            goto inf_end;
+        }
 		/** Adjust previous output buffer with respect to avail_out */
 		have = dl - strm->avail_out;
 		dst += have;
@@ -181,10 +204,13 @@ process_zlib_inflate(struct rte_comp_op *op, z_stream *strm)
 		src = rte_pktmbuf_mtod(mbuf_src, uint8_t *);
 		sl = rte_pktmbuf_data_len(mbuf_src);
 		if ((op->src.length - op->consumed) < sl)
+        {
 			sl = (op->src.length - op->consumed);
-
+        }
 	} while (1);
-
+inf_end:
+	if (op->op_type == RTE_COMP_OP_STATELESS)
+        inflateReset(strm);
 	return;
 }
 
@@ -286,7 +312,10 @@ zlib_set_stream_parameters(const struct rte_comp_xform *xform, struct zlib_strea
 			if (deflateInit2(strm, level,
 						Z_DEFLATED, wbits,
 						DEF_MEM_LEVEL, strategy) != Z_OK)
+            {
+				ZLIB_LOG_ERR("Deflate init failed\n");
 				return -1;
+            }
 			break;
 		case RTE_COMP_DECOMPRESS:
 
@@ -303,7 +332,10 @@ zlib_set_stream_parameters(const struct rte_comp_xform *xform, struct zlib_strea
 			}
 
 			if (inflateInit2(strm, wbits) != Z_OK)
+            {
+				ZLIB_LOG_ERR("Inflate init failed\n");
 				return -1;
+            }
 			break;
 		default:
 			return -1;
