@@ -22,14 +22,13 @@ int zlib_logtype_driver;
 /** compute the next mbuf in list and assign dst buffer and dlen,
  * set op->status to appropriate flag if we run out of mbuf
  */
-#define COMPUTE_DST_BUF(mbuf, dst, dlen) 		\
-		((mbuf = mbuf->next) ? 						\
-		 (dst = rte_pktmbuf_mtod(mbuf, uint8_t *)), \
-		 dlen = rte_pktmbuf_data_len(mbuf) : 		\
-		 !(op->status = 							\
-			 ((op->op_type == RTE_COMP_OP_STATELESS) ?		\
-			  RTE_COMP_OP_STATUS_OUT_OF_SPACE_TERMINATED : 	\
-			  RTE_COMP_OP_STATUS_OUT_OF_SPACE_RECOVERABLE)))
+#define COMPUTE_DST_BUF(mbuf, dst, dlen)		\
+	((mbuf = mbuf->next) ?						\
+		(dst = rte_pktmbuf_mtod(mbuf, uint8_t *)),	\
+		dlen = rte_pktmbuf_data_len(mbuf) :			\
+			!(op->status = ((op->op_type == RTE_COMP_OP_STATELESS) ?	\
+			RTE_COMP_OP_STATUS_OUT_OF_SPACE_TERMINATED :	\
+			RTE_COMP_OP_STATUS_OUT_OF_SPACE_RECOVERABLE)))
 
 static void
 process_zlib_deflate(struct rte_comp_op *op, z_stream *strm)
@@ -108,7 +107,8 @@ process_zlib_deflate(struct rte_comp_op *op, z_stream *strm)
 		 * or till Z_FINISH
 		 * Exit if op->status is not SUCCESS.
 		 */
-		if ((op->status != RTE_COMP_OP_STATUS_SUCCESS) || ret == Z_STREAM_END ||
+		if ((op->status != RTE_COMP_OP_STATUS_SUCCESS) ||
+			(ret == Z_STREAM_END) ||
 			op->consumed == op->src.length)
 			goto def_end;
 
@@ -195,15 +195,16 @@ process_zlib_inflate(struct rte_comp_op *op, z_stream *strm)
 
 			}
 		/* Break if Z_STREAM_END is encountered or dst mbuf gets over */
-		} while ( !(ret == Z_STREAM_END) &&	(strm->avail_out == 0) &&
+		} while ( !(ret == Z_STREAM_END) && (strm->avail_out == 0) &&
 				COMPUTE_DST_BUF(mbuf_dst, dst, dl));
 
 		/** Compress till the end of compressed blocks provided
 		 * or till Z_STREAM_END.
 		 * Exit if op->status is not SUCCESS.
 		 */
-		if ((op->status != RTE_COMP_OP_STATUS_SUCCESS) || ret == Z_STREAM_END ||
-				op->consumed == op->src.length)	{
+		if ((op->status != RTE_COMP_OP_STATUS_SUCCESS) ||
+				(ret == Z_STREAM_END) ||
+				op->consumed == op->src.length) {
 			goto inf_end;
 		}
 		/** Adjust previous output buffer with respect to avail_out */
@@ -214,9 +215,8 @@ process_zlib_inflate(struct rte_comp_op *op, z_stream *strm)
 		mbuf_src = mbuf_src->next;
 		src = rte_pktmbuf_mtod(mbuf_src, uint8_t *);
 		sl = rte_pktmbuf_data_len(mbuf_src);
-		if ((op->src.length - op->consumed) < sl) {
+		if ((op->src.length - op->consumed) < sl)
 			sl = (op->src.length - op->consumed);
-		}
 	} while (1);
 inf_end:
 	if (op->op_type == RTE_COMP_OP_STATELESS)
