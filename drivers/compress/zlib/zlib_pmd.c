@@ -17,6 +17,7 @@
 #include "zlib_pmd_private.h"
 
 static uint8_t compressdev_driver_id;
+int zlib_logtype_driver;
 
 /** compute the next mbuf in list and assign dst buffer and dlen,
  * set op->status to appropriate flag if we run out of mbuf */
@@ -87,7 +88,7 @@ process_zlib_deflate(struct rte_comp_op *op, z_stream *strm)
 			strm->avail_out = dl;
 			strm->next_out = dst;
 			ret = deflate(strm, flush);
-			if(unlikely(ret == Z_STREAM_ERROR)) {
+			if (unlikely(ret == Z_STREAM_ERROR)) {
 				/* error return, do not process further */
 				op->status =  RTE_COMP_OP_STATUS_ERROR;
                 goto def_end;
@@ -134,7 +135,7 @@ def_end:
 static void
 process_zlib_inflate(struct rte_comp_op *op, z_stream *strm)
 {
-	int ret, flush, fin_flush;
+	int ret, flush;
 	uint8_t *src, *dst;
 	uint32_t sl, dl, have;
 	struct rte_mbuf *mbuf_src = op->m_src;
@@ -460,3 +461,13 @@ static struct rte_vdev_driver zlib_pmd_drv = {
 
 RTE_PMD_REGISTER_VDEV(COMPRESSDEV_NAME_ZLIB_PMD, zlib_pmd_drv);
 RTE_PMD_REGISTER_ALIAS(COMPRESSDEV_NAME_ZLIB_PMD, compressdev_zlib_pmd);
+
+RTE_INIT(zlib_init_log);
+
+static void
+zlib_init_log(void)
+{
+	zlib_logtype_driver = rte_log_register("compdev_zlib");
+	if (zlib_logtype_driver >= 0)
+		rte_log_set_level(zlib_logtype_driver, RTE_LOG_INFO);
+}
