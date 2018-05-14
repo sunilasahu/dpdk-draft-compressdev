@@ -586,6 +586,12 @@ CONFIG_RTE_COMPRESSDEV_TEST=n
 CONFIG_RTE_LIBRTE_PMD_ISAL=n
 
 #
+# Compile PMD for ZLIB compression device
+#
+CONFIG_RTE_LIBRTE_PMD_ZLIB=n
+CONFIG_RTE_LIBRTE_PMD_ZLIB_DEBUG=n
+
+#
 # Compile generic event device library
 #
 CONFIG_RTE_LIBRTE_EVENTDEV=y
