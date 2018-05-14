@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: BSD-3-Clause
-# Copyright(c) 2017 Intel Corporation
+# Copyright(c) 2018 Cavium Networks
 
 dep = dependency('libz', required: false)
 if not dep.found()

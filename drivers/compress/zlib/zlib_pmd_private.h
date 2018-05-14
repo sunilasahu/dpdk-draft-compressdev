@@ -1,33 +1,5 @@
-/*-
- *   BSD LICENSE
- *
- *   Copyright(c) 2016-2017 Intel Corporation. All rights reserved.
- *
- *   Redistribution and use in source and binary forms, with or without
- *   modification, are permitted provided that the following conditions
- *   are met:
- *
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in
- *       the documentation and/or other materials provided with the
- *       distribution.
- *     * Neither the name of Intel Corporation nor the names of its
- *       contributors may be used to endorse or promote products derived
- *       from this software without specific prior written permission.
- *
- *   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *   "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *   LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *   A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- *   OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- *   SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- *   LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- *   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- *   THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- *   (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- *   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/* SPDX-License-Identifier: BSD-3-Clause
+ * Copyright(c) 2017-2018 Cavium Networks
  */
 
 #ifndef _RTE_ZLIB_PMD_PRIVATE_H_
@@ -41,20 +13,22 @@
 #define COMPRESSDEV_NAME_ZLIB_PMD	compress_zlib
 /**< ZLIB PMD device name */
 
-#define ZLIB_PMD_MAX_NB_QUEUE_PAIRS	0
+#define ZLIB_PMD_MAX_NB_QUEUE_PAIRS	1
 /**< ZLIB PMD specified queue pairs */
 
 #define DEF_MEM_LEVEL			8
 
-#define ZLIB_LOG_ERR(fmt, args...) \
-	RTE_LOG(ERR, COMPRESSDEV, "[%s] %s() line %u: " fmt "\n",  \
-			RTE_STR(COMPRESSDEV_NAME_ZLIB_PMD), \
-			__func__, __LINE__, ## args)
+int zlib_logtype_driver;
+#define ZLIB_LOG(level, fmt, args...) \
+	rte_log(RTE_LOG_ ## level, zlib_logtype_driver, "%s(): "fmt "\n", \
+			__func__, ##args)
 
 #define ZLIB_LOG_INFO(fmt, args...) \
-	RTE_LOG(INFO, COMPRESSDEV, "[%s] %s() line %u: " fmt "\n",  \
-			RTE_STR(COMPRESSDEV_NAME_ZLIB_PMD), \
-			__func__, __LINE__, ## args)
+	ZLIB_LOG(INFO, fmt, ## args)
+#define ZLIB_LOG_ERR(fmt, args...) \
+	ZLIB_LOG(ERR, fmt, ## args)
+#define ZLIB_LOG_WARN(fmt, args...) \
+	ZLIB_LOG(WARNING, fmt, ## args)
 
 struct zlib_private {
 	uint32_t max_nb_queue_pairs;
@@ -89,7 +63,7 @@ struct zlib_stream {
 
 /** ZLIB private xform structure */
 struct zlib_priv_xform {
-    struct zlib_stream stream;    
+	struct zlib_stream stream;    
 } __rte_cache_aligned;
 
 /** Set ZLIB compression private-xform/Stream parameters */

@@ -26,7 +26,7 @@ int zlib_logtype_driver;
 	((mbuf = mbuf->next) ?						\
 		(dst = rte_pktmbuf_mtod(mbuf, uint8_t *)),	\
 		dlen = rte_pktmbuf_data_len(mbuf) :			\
-			!(op->status = ((op->op_type == RTE_COMP_OP_STATELESS) ?	\
+			!(op->status = ((op->op_type == RTE_COMP_OP_STATELESS) ?\
 			RTE_COMP_OP_STATUS_OUT_OF_SPACE_TERMINATED :	\
 			RTE_COMP_OP_STATUS_OUT_OF_SPACE_RECOVERABLE)))
 
@@ -195,7 +195,7 @@ process_zlib_inflate(struct rte_comp_op *op, z_stream *strm)
 
 			}
 		/* Break if Z_STREAM_END is encountered or dst mbuf gets over */
-		} while ( !(ret == Z_STREAM_END) && (strm->avail_out == 0) &&
+		} while (!(ret == Z_STREAM_END) && (strm->avail_out == 0) &&
 				COMPUTE_DST_BUF(mbuf_dst, dst, dl));
 
 		/** Compress till the end of compressed blocks provided
@@ -267,6 +267,7 @@ zlib_set_stream_parameters(const struct rte_comp_xform *xform,
 	strm->zfree = Z_NULL;
 	strm->opaque = Z_NULL;
 
+	ZLIB_LOG_INFO("SUCCESS INIT\n");
 	switch (xform->type) {
 	case RTE_COMP_COMPRESS:
 
@@ -476,7 +477,7 @@ RTE_INIT(zlib_init_log);
 static void
 zlib_init_log(void)
 {
-	zlib_logtype_driver = rte_log_register("compdev_zlib");
+	zlib_logtype_driver = rte_log_register("compress_zlib");
 	if (zlib_logtype_driver >= 0)
 		rte_log_set_level(zlib_logtype_driver, RTE_LOG_INFO);
 }
