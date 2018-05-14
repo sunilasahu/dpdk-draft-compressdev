@@ -65,7 +65,7 @@ zlib_pmd_config(__rte_unused struct rte_compressdev *dev,
 					"stream_mp_%u", dev->data->dev_id);
 	mp = rte_mempool_create(internals->mp_name,
 			config->max_nb_priv_xforms + config->max_nb_streams,
-			sizeof(struct zlib_priv_xform), 
+			sizeof(struct zlib_priv_xform),
 			0, 0, NULL, NULL, NULL,
 			NULL, config->socket_id,
 			0);
@@ -91,7 +91,7 @@ zlib_pmd_stop(__rte_unused struct rte_compressdev *dev)
 
 	struct zlib_private *internals = dev->data->dev_private;
 	struct rte_mempool *mp = rte_mempool_lookup(internals->mp_name);
-	rte_mempool_free(mp); 
+	rte_mempool_free(mp);
 }
 
 /** Close device */
@@ -263,7 +263,7 @@ zlib_pmd_stream_create(__rte_unused struct rte_compressdev *dev,
 				"Couldn't get object from session mempool");
 		return -ENOMEM;
 	}
-    stream = *((struct zlib_stream **)zstream); 
+    stream = *((struct zlib_stream **)zstream);
 
 	ret = zlib_set_stream_parameters(xform, stream);
 
@@ -314,7 +314,7 @@ zlib_pmd_private_xform_free(__rte_unused struct rte_compressdev *dev,
 		void *private_xform)
 {
     zlib_pmd_stream_free(dev, private_xform);
-	
+
 	return 0;
 }
 
@@ -323,7 +323,7 @@ struct rte_compressdev_ops zlib_pmd_ops = {
 		.dev_start		= zlib_pmd_start,
 		.dev_stop		= zlib_pmd_stop,
 		.dev_close		= zlib_pmd_close,
-    
+
 		.stats_get		= zlib_pmd_stats_get,
 		.stats_reset		= zlib_pmd_stats_reset,
 

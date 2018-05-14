@@ -20,14 +20,18 @@ static uint8_t compressdev_driver_id;
 int zlib_logtype_driver;
 
 /** compute the next mbuf in list and assign dst buffer and dlen,
- * set op->status to appropriate flag if we run out of mbuf */
-#define COMPUTE_DST_BUF(mbuf, dst, dlen) \
-        ((mbuf = mbuf->next) ? (dst = rte_pktmbuf_mtod(mbuf, uint8_t *)), dlen =rte_pktmbuf_data_len(mbuf) : \
-        !(op->status = ((op->op_type == RTE_COMP_OP_STATELESS) ?\
-        RTE_COMP_OP_STATUS_OUT_OF_SPACE_TERMINATED : \
-        RTE_COMP_OP_STATUS_OUT_OF_SPACE_RECOVERABLE) ) )
+ * set op->status to appropriate flag if we run out of mbuf
+ */
+#define COMPUTE_DST_BUF(mbuf, dst, dlen) 		\
+		((mbuf = mbuf->next) ? 						\
+		 (dst = rte_pktmbuf_mtod(mbuf, uint8_t *)), \
+		 dlen = rte_pktmbuf_data_len(mbuf) : 		\
+		 !(op->status = 							\
+			 ((op->op_type == RTE_COMP_OP_STATELESS) ?		\
+			  RTE_COMP_OP_STATUS_OUT_OF_SPACE_TERMINATED : 	\
+			  RTE_COMP_OP_STATUS_OUT_OF_SPACE_RECOVERABLE)))
 
-static void 
+static void
 process_zlib_deflate(struct rte_comp_op *op, z_stream *strm)
 {
 	int ret, flush, fin_flush;
@@ -50,7 +54,7 @@ process_zlib_deflate(struct rte_comp_op *op, z_stream *strm)
 		ZLIB_LOG_ERR("\nInvalid source or destination buffers");
 		return;
 	}
-    switch (op->flush_flag) {
+	switch (op->flush_flag) {
 	case RTE_COMP_FLUSH_NONE:
 		fin_flush = Z_NO_FLUSH;
 		break;
@@ -65,7 +69,7 @@ process_zlib_deflate(struct rte_comp_op *op, z_stream *strm)
 		break;
 	default:
 		op->status = RTE_COMP_OP_STATUS_ERROR;
-        goto def_end;
+		goto def_end;
 	}
 	if (op->src.length <= sl) {
 		sl = op->src.length;
@@ -91,19 +95,22 @@ process_zlib_deflate(struct rte_comp_op *op, z_stream *strm)
 			if (unlikely(ret == Z_STREAM_ERROR)) {
 				/* error return, do not process further */
 				op->status =  RTE_COMP_OP_STATUS_ERROR;
-                goto def_end;
+				goto def_end;
 			}
 			/* Update op stats */
 			op->produced += dl - strm->avail_out;
 			op->consumed += sl - strm->avail_in;
-		/* Break if all inputs are consumed or dst mbuf gets over */ 
-		} while(!(ret == Z_STREAM_END) && (strm->avail_out == 0) && COMPUTE_DST_BUF(mbuf_dst, dst, dl));
-        
-		/** Compress till the end of compressed blocks provided 
-		 * or till Z_FINISH 
-		 * Exit if op->status is not SUCCESS. */
-		if ((op->status != RTE_COMP_OP_STATUS_SUCCESS) || ret == Z_STREAM_END || op->consumed == op->src.length)
-            goto def_end;
+		/* Break if Z_STREAM_END is encountered or dst mbuf gets over */
+		} while (!(ret == Z_STREAM_END) && (strm->avail_out == 0) &&
+				COMPUTE_DST_BUF(mbuf_dst, dst, dl));
+
+		/** Compress till the end of compressed blocks provided
+		 * or till Z_FINISH
+		 * Exit if op->status is not SUCCESS.
+		 */
+		if ((op->status != RTE_COMP_OP_STATUS_SUCCESS) || ret == Z_STREAM_END ||
+			op->consumed == op->src.length)
+			goto def_end;
 
 		/** Update last output buffer with respect to availed space */
 		have = dl - strm->avail_out;
@@ -116,18 +123,18 @@ process_zlib_deflate(struct rte_comp_op *op, z_stream *strm)
 
 		/** Last block to be compressed, flush value needs to be updated
 		 * Update flush with value provided by app for last block,
-		 * For stateless flush should be always Z_FINISH */
+		 * For stateless flush should be always Z_FINISH
+		 */
 
-		if ((op->src.length - op->consumed) <= sl)
-		{
+		if ((op->src.length - op->consumed) <= sl) {
 			sl = (op->src.length - op->consumed);
 			flush = fin_flush;
 		}
 
-	} while(1);
+	} while (1);
 def_end:
 	if (op->op_type == RTE_COMP_OP_STATELESS)
-        deflateReset(strm);
+		deflateReset(strm);
 
 	return;
 }
@@ -174,28 +181,31 @@ process_zlib_inflate(struct rte_comp_op *op, z_stream *strm)
 			ret = inflate(strm, flush);
 
 			switch (ret) {
-				case Z_NEED_DICT:
-					ret = Z_DATA_ERROR;     /* and fall through */
-				case Z_DATA_ERROR:
-				case Z_MEM_ERROR:
-				case Z_STREAM_ERROR:
-					op->status = RTE_COMP_OP_STATUS_ERROR;
-                    goto inf_end;
-                default:
-                    op->produced += dl - strm->avail_out;
-                    op->consumed += sl - strm->avail_in;
+			case Z_NEED_DICT:
+				ret = Z_DATA_ERROR;     /* and fall through */
+			case Z_DATA_ERROR:
+			case Z_MEM_ERROR:
+			case Z_STREAM_ERROR:
+				op->status = RTE_COMP_OP_STATUS_ERROR;
+				goto inf_end;
+			default:
+				/** Update op stats */
+				op->produced += dl - strm->avail_out;
+				op->consumed += sl - strm->avail_in;
 
 			}
-			/** Update op stats */
-		} while ( !(ret == Z_STREAM_END) && (strm->avail_out == 0) && COMPUTE_DST_BUF(mbuf_dst, dst, dl));
-        
-		/** Compress till the end of compressed blocks provided 
+		/* Break if Z_STREAM_END is encountered or dst mbuf gets over */
+		} while ( !(ret == Z_STREAM_END) &&	(strm->avail_out == 0) &&
+				COMPUTE_DST_BUF(mbuf_dst, dst, dl));
+
+		/** Compress till the end of compressed blocks provided
 		 * or till Z_STREAM_END.
-		 * Exit if op->status is not SUCCESS. */
-		if ((op->status != RTE_COMP_OP_STATUS_SUCCESS) || ret == Z_STREAM_END || op->consumed == op->src.length)
-        {
-            goto inf_end;
-        }
+		 * Exit if op->status is not SUCCESS.
+		 */
+		if ((op->status != RTE_COMP_OP_STATUS_SUCCESS) || ret == Z_STREAM_END ||
+				op->consumed == op->src.length)	{
+			goto inf_end;
+		}
 		/** Adjust previous output buffer with respect to avail_out */
 		have = dl - strm->avail_out;
 		dst += have;
@@ -204,14 +214,13 @@ process_zlib_inflate(struct rte_comp_op *op, z_stream *strm)
 		mbuf_src = mbuf_src->next;
 		src = rte_pktmbuf_mtod(mbuf_src, uint8_t *);
 		sl = rte_pktmbuf_data_len(mbuf_src);
-		if ((op->src.length - op->consumed) < sl)
-        {
+		if ((op->src.length - op->consumed) < sl) {
 			sl = (op->src.length - op->consumed);
-        }
+		}
 	} while (1);
 inf_end:
 	if (op->op_type == RTE_COMP_OP_STATELESS)
-        inflateReset(strm);
+		inflateReset(strm);
 	return;
 }
 
@@ -221,15 +230,16 @@ process_zlib_op(struct zlib_qp *qp, struct rte_comp_op *op)
 {
 	struct zlib_stream *stream ;
 
-	if( op->src.offset > rte_pktmbuf_data_len(op->m_src) || op->dst.offset > rte_pktmbuf_data_len(op->m_dst)) {
+	if ( op->src.offset > rte_pktmbuf_data_len(op->m_src) ||
+			op->dst.offset > rte_pktmbuf_data_len(op->m_dst)) {
 		op->status = RTE_COMP_OP_STATUS_INVALID_ARGS;
 		ZLIB_LOG_ERR("\nInvalid source or destination buffers");
 		goto comp_err;
 	}
-        
+
 	if (op->op_type == RTE_COMP_OP_STATELESS)
 		stream = &((struct zlib_priv_xform *)op->private_xform)->stream;
-	else if(op->op_type == RTE_COMP_OP_STATEFUL)
+	else if (op->op_type == RTE_COMP_OP_STATEFUL)
 		stream = (struct zlib_stream *)op->stream;
 	else {
 		op->status = RTE_COMP_OP_STATUS_INVALID_ARGS;
@@ -246,7 +256,8 @@ comp_err:
 
 /** Parse comp xform and set private xform/Stream parameters */
 int
-zlib_set_stream_parameters(const struct rte_comp_xform *xform, struct zlib_stream *stream)
+zlib_set_stream_parameters(const struct rte_comp_xform *xform,
+		struct zlib_stream *stream)
 {
 	int strategy, level, wbits;
 	z_stream *strm = &stream->strm;
@@ -257,89 +268,87 @@ zlib_set_stream_parameters(const struct rte_comp_xform *xform, struct zlib_strea
 	strm->opaque = Z_NULL;
 
 	switch (xform->type) {
-		case RTE_COMP_COMPRESS:
+	case RTE_COMP_COMPRESS:
 
-			stream->comp = process_zlib_deflate;
-			stream->free = deflateEnd;
-			/** Compression window bits */
-			switch (xform->compress.algo) {
-				case RTE_COMP_ALGO_DEFLATE:
-					wbits = -(xform->compress.window_size);
-					break;
-				default:
-					ZLIB_LOG_ERR("Compression algorithm not supported\n");
-					return -1;
-			}
-
-			/** Compression Level */
-			switch (xform->compress.level) {
-				case RTE_COMP_LEVEL_PMD_DEFAULT:
-					level = Z_DEFAULT_COMPRESSION;
-					break;
-				case RTE_COMP_LEVEL_NONE:
-					level = Z_NO_COMPRESSION;
-					break;
-				case RTE_COMP_LEVEL_MIN:
-					level = Z_BEST_SPEED;
-					break;
-				case RTE_COMP_LEVEL_MAX:
-					level = Z_BEST_COMPRESSION;
-					break;
-				default:
-					level = xform->compress.level;
-
-					if (level < RTE_COMP_LEVEL_MIN ||
-							level > RTE_COMP_LEVEL_MAX) {
-						ZLIB_LOG_ERR("Compression level not supported\n");
-						return -1;
-					}
-			}
-
-			/** Compression strategy */
-			switch (xform->compress.deflate.huffman) {
-				case RTE_COMP_HUFFMAN_DEFAULT:
-					strategy = Z_DEFAULT_STRATEGY;
-					break;
-				case RTE_COMP_HUFFMAN_FIXED:
-					strategy = Z_FIXED;
-					break;
-				case RTE_COMP_HUFFMAN_DYNAMIC:
-					strategy = Z_HUFFMAN_ONLY;
-					break;
-				default:
-					ZLIB_LOG_ERR("Compression strategy not supported\n");
-					return -1;
-			}
-			if (deflateInit2(strm, level,
-						Z_DEFLATED, wbits,
-						DEF_MEM_LEVEL, strategy) != Z_OK)
-            {
-				ZLIB_LOG_ERR("Deflate init failed\n");
-				return -1;
-            }
-			break;
-		case RTE_COMP_DECOMPRESS:
-
-			stream->comp = process_zlib_inflate;
-			stream->free = inflateEnd;
-			/** window bits */
-			switch (xform->decompress.algo) {
-				case RTE_COMP_ALGO_DEFLATE:
-					wbits = -(xform->decompress.window_size);
-					break;
-				default:
-					ZLIB_LOG_ERR("Compression algorithm not supported\n");
-					return -1;
-			}
-
-			if (inflateInit2(strm, wbits) != Z_OK)
-            {
-				ZLIB_LOG_ERR("Inflate init failed\n");
-				return -1;
-            }
+		stream->comp = process_zlib_deflate;
+		stream->free = deflateEnd;
+		/** Compression window bits */
+		switch (xform->compress.algo) {
+		case RTE_COMP_ALGO_DEFLATE:
+			wbits = -(xform->compress.window_size);
 			break;
 		default:
+			ZLIB_LOG_ERR("Compression algorithm not supported\n");
 			return -1;
+		}
+
+		/** Compression Level */
+		switch (xform->compress.level) {
+		case RTE_COMP_LEVEL_PMD_DEFAULT:
+			level = Z_DEFAULT_COMPRESSION;
+			break;
+		case RTE_COMP_LEVEL_NONE:
+			level = Z_NO_COMPRESSION;
+			break;
+		case RTE_COMP_LEVEL_MIN:
+			level = Z_BEST_SPEED;
+			break;
+		case RTE_COMP_LEVEL_MAX:
+			level = Z_BEST_COMPRESSION;
+			break;
+		default:
+			level = xform->compress.level;
+
+			if (level < RTE_COMP_LEVEL_MIN ||
+					level > RTE_COMP_LEVEL_MAX) {
+				ZLIB_LOG_ERR("Compression level not supported\n");
+				return -1;
+			}
+		}
+
+		/** Compression strategy */
+		switch (xform->compress.deflate.huffman) {
+		case RTE_COMP_HUFFMAN_DEFAULT:
+			strategy = Z_DEFAULT_STRATEGY;
+			break;
+		case RTE_COMP_HUFFMAN_FIXED:
+			strategy = Z_FIXED;
+			break;
+		case RTE_COMP_HUFFMAN_DYNAMIC:
+			strategy = Z_HUFFMAN_ONLY;
+			break;
+		default:
+			ZLIB_LOG_ERR("Compression strategy not supported\n");
+			return -1;
+		}
+		if (deflateInit2(strm, level,
+					Z_DEFLATED, wbits,
+					DEF_MEM_LEVEL, strategy) != Z_OK) {
+			ZLIB_LOG_ERR("Deflate init failed\n");
+			return -1;
+		}
+		break;
+	case RTE_COMP_DECOMPRESS:
+
+		stream->comp = process_zlib_inflate;
+		stream->free = inflateEnd;
+		/** window bits */
+		switch (xform->decompress.algo) {
+		case RTE_COMP_ALGO_DEFLATE:
+			wbits = -(xform->decompress.window_size);
+			break;
+		default:
+			ZLIB_LOG_ERR("Compression algorithm not supported\n");
+			return -1;
+		}
+
+		if (inflateInit2(strm, wbits) != Z_OK) {
+			ZLIB_LOG_ERR("Inflate init failed\n");
+			return -1;
+		}
+		break;
+	default:
+		return -1;
 	}
 	return 0;
 }
@@ -359,7 +368,7 @@ zlib_pmd_enqueue_burst(void *queue_pair,
 			 */
 			qp->qp_stats.enqueue_err_count++;
 		} else {
-			qp->qp_stats.enqueued_count ++;
+			qp->qp_stats.enqueued_count++;
 			enqd++;
 		}
 	}
